@@ -1,0 +1,22 @@
+[package]
+name = "utilites"
+version = "0.1.0"
+edition = "2021"
+
+[features]
+default = ["dates"]
+dates = ["dep:chrono"]
+# flexbuffers = ["dep:flexbuffers"]
+# binary = ["dep:bitcode"]
+# json = ["dep:serde_json"]
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chrono= {version = "0.4.38", optional = true}
+thiserror="1.0.59"
+serde_json = "1.0.116"
+serde = { version = "1.0.198", features = ["derive"] }
+tokio= {version = "*", features = ["macros"] }
+tokio-test= {version ="*"}
+logger = {git = "https://github.com/P40b0s/logger.git", branch = "main"}
