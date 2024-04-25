@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [features]
-default = ["dates"]
+default = ["dates", "hashing"]
 dates = ["dep:chrono"]
+hashing = ["dep:blake2", "dep:hashbrown", "dep:base64"]
 # flexbuffers = ["dep:flexbuffers"]
 # binary = ["dep:bitcode"]
 # json = ["dep:serde_json"]
@@ -20,3 +21,7 @@ serde = { version = "1.0.198", features = ["derive"] }
 tokio= {version = "*", features = ["macros"] }
 tokio-test= {version ="*"}
 logger = {git = "https://github.com/P40b0s/logger.git", branch = "main"}
+
+blake2 = {version="0.10.6", optional = true}
+base64 = {version = "0.13.1", optional = true}
+hashbrown = {version ="0.14.3" , features = ['serde'], optional = true}

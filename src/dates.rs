@@ -218,6 +218,35 @@ impl Date
         let y = 10i32.pow(decimals) as f64;
         (x * y).round() / y
     }
+    // pub fn convert_system_time(dt: SystemTime) -> Option<String>
+    // {
+    //     let mut offset: OffsetDateTime = dt.into();
+    //     let dur = Duration::hours(3);
+    //     if let Ok(utc_offset_result) = UtcOffset::from_whole_seconds(dur.as_seconds_f32().round() as i32)
+    //     {
+    //         offset = offset.to_offset(utc_offset_result);
+    //     }
+    //     let dt_format = crate::SETTINGS.read().unwrap().get_date_time_format();
+    //     let format = format_description::parse(
+    //         &dt_format,
+    //     ).ok()?;
+    //     // let format = format_description::parse(
+    //     //     "[year]-[month]-[day]T[hour]:[minute]:[second]",
+    //     // ).ok()?;
+    //     let off = offset.format(&format);
+    //     match off
+    //     {
+    //         Ok(off) => {
+    //             //println!("{}", off);
+    //             return Some(off);
+    //         },
+    //         Err(e) => 
+    //         {
+    //             error!("Ошибка преобразования даты: {:?}, {}", dt, e.to_string());
+    //             return None;
+    //         }
+    //     };
+    // }
 }
 
 impl Display for Date
