@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::Display, str::FromStr};
+use std::{borrow::Cow, fmt::Display};
 
 use chrono::{NaiveDateTime, Local, DateTime, NaiveDate, Datelike, NaiveTime, Timelike};
 use logger::{error, backtrace};
@@ -11,15 +11,11 @@ pub const FORMAT_DOT_DATE: &'static str = "%d.%m.%Y";
 pub const FORMAT_DASH_DATE: &'static str = "%d-%m-%Y";
 pub const FORMAT_FULL_DATE: &'static str = "%d %m %Y";
 
-
 #[derive(Debug, Clone)]
 /// Объект хранящий дату время, пока без оффсета
-pub struct Date
+pub struct Date(NaiveDateTime);
+impl<'de> Deserialize<'de> for Date 
 {
-    date : NaiveDateTime
-}
-
-impl<'de> Deserialize<'de> for Date {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: serde::Deserializer<'de>,
@@ -37,7 +33,9 @@ impl<'de> Deserialize<'de> for Date {
         }
     }
 }
-impl<'a> Serialize for Date {
+
+impl<'a> Serialize for Date 
+{
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: serde::Serializer,
@@ -48,30 +46,42 @@ impl<'a> Serialize for Date {
 
 impl Date
 {
+    /// Поддерживаемые форматы дат:  
+    /// 26-10-2022T13:23:52  
+    /// 2022-10-26T13:23:52  
+    /// 2022-10-26 13:23:52  
+    /// 26.10.2022  
+    /// 26-10-2022  
+    /// 26 ноября 2022
     pub fn parse<'a, F: Into<Cow<'a, str>>>(date: F) -> Option<Self>
     {
         let date = date.into();
         if let Ok(dt) = NaiveDateTime::parse_from_str(&date, FORMAT_SERIALIZE_DATE_TIME)
         {
-            Some(Date {date : dt})
+            Some(Date(dt))
         }
         else if let Ok(dt) = NaiveDateTime::parse_from_str(&date, FORMAT_SERIALIZE_DATE_TIME_REVERSE)
         {
-            Some(Date{date: dt})
+            Some(Date(dt))
         }
         else if let Ok(dt) = NaiveDateTime::parse_from_str(&date, FORMAT_SERIALIZE_DATE_TIME_WS)
         {
-            Some(Date{date: dt})
+            Some(Date(dt))
         }
         else if let Ok(dt) = NaiveDate::parse_from_str(&date, FORMAT_DOT_DATE)
         {
             let dt =  dt.and_hms_opt(0, 0, 0).unwrap();
-            Some(Date{date: dt})
+            Some(Date(dt))
+        }
+        else if let Ok(dt) = NaiveDate::parse_from_str(&date, FORMAT_DASH_DATE)
+        {
+            let dt =  dt.and_hms_opt(0, 0, 0).unwrap();
+            Some(Date(dt))
         }
         else if let Ok(dt) = NaiveDate::parse_from_str(&Self::locale_months_to_num(&date), FORMAT_FULL_DATE)
         {
             let dt = dt.and_hms_opt(0, 0, 0).unwrap();
-            Some(Date{date: dt})
+            Some(Date(dt))
         }
         else 
         {
@@ -83,18 +93,18 @@ impl Date
     {
         let time = NaiveTime::from_hms_opt(hour, minute, second).expect("Ошибка первода даты");
         let date = NaiveDate::from_ymd_opt(year as i32, month, day).expect("Ошибка первода даты");
-        Self{date: NaiveDateTime::new(date, time)}
+        Self(NaiveDateTime::new(date, time))
     }
     pub fn new_date(day: u32, month: u32, year:u32) -> Self
     {
         let time = NaiveTime::from_hms_opt(0, 0, 0).expect("Ошибка первода даты");
         let date = NaiveDate::from_ymd_opt(year as i32, month, day).expect("Ошибка первода даты");
-        Self{date: NaiveDateTime::new(date, time)}
+        Self(NaiveDateTime::new(date, time))
     }
     pub fn now() -> Self
     {
         let now = Self::from_date_time_to_naive_date_time(Local::now());
-        Self{ date: now}
+        Self(now)
     }
     fn from_date_time_to_naive_date_time(value: DateTime<Local>) -> NaiveDateTime
     {
@@ -102,9 +112,9 @@ impl Date
         let date = NaiveDate::from_ymd_opt(value.year(), value.month(), value.day()).expect("Ошибка первода даты из формата DateTime<Local> в формат NaiveDate");
         NaiveDateTime::new(date, time)
     }
-    fn as_naive_datetime(&self) -> NaiveDateTime
+    pub fn as_naive_datetime(&self) -> NaiveDateTime
     {
-        self.date.clone()
+        self.0.clone()
     }
     fn locale_months_to_num(date: &str) -> String
     {
@@ -125,7 +135,7 @@ impl Date
 
     fn num_to_locale_month(&self) -> String
     {
-        match self.date.month()
+        match self.0.month()
         {
             1 => "января".to_owned(),
             2 => "февраля".to_owned(),
@@ -143,22 +153,70 @@ impl Date
         }
     }
 
-    fn format(&self, format : DateFormat) -> String
+    pub fn format(&self, format : DateFormat) -> String
     {
         match format
         {
-            DateFormat::Serialize => self.date.format(FORMAT_SERIALIZE_DATE_TIME).to_string(),
-            DateFormat::SerializeReverse => self.date.format(FORMAT_SERIALIZE_DATE_TIME_REVERSE).to_string(),
-            DateFormat::OnlyDate => self.date.format(FORMAT_DASH_DATE).to_string(),
-            DateFormat::DotDate => self.date.format(FORMAT_DOT_DATE).to_string(),
+            DateFormat::Serialize => self.0.format(FORMAT_SERIALIZE_DATE_TIME).to_string(),
+            DateFormat::SerializeReverse => self.0.format(FORMAT_SERIALIZE_DATE_TIME_REVERSE).to_string(),
+            DateFormat::OnlyDate => self.0.format(FORMAT_DASH_DATE).to_string(),
+            DateFormat::DotDate => self.0.format(FORMAT_DOT_DATE).to_string(),
             DateFormat::FullDate => 
             {
-                let day = self.date.day();
+                let day = self.0.day();
                 let month = self.num_to_locale_month();
-                let year = self.date.year();
+                let year = self.0.year();
                 format!("{day:02} {month} {year}")
             }
         }  
+    }
+    fn add_time_to_end_day(self) -> Self
+    {
+        if self.0.hour() == 0 && self.0.minute() == 0 && self.0.second() == 0
+        {
+            Self(self.0.with_hour(23).unwrap().with_minute(59).unwrap().with_second(59).unwrap())
+        }
+        else
+        {
+            self
+        }
+    }
+    /// Высчитывает разницу между датами
+    pub fn diff(&self, end_date: Date) -> Diff
+    {
+        let start_date = self;
+        let end_date = end_date.add_time_to_end_day();
+        let date_now = Date::now();
+        let one_day = 86400; // секунд с сутках
+        //разница между двумя датами в днях
+        let end_start_timestramp_diff = end_date.as_naive_datetime().and_utc().timestamp() - start_date.as_naive_datetime().and_utc().timestamp();
+        let diff_full_vacation = if end_start_timestramp_diff > 0
+        {
+            end_start_timestramp_diff as f64 / one_day as f64
+        }
+        else
+        {
+            0.0
+        };
+        //разница между сегодняшней датой и конечной датой
+        let end_now_timestramp_diff = end_date.as_naive_datetime().and_utc().timestamp() - date_now.as_naive_datetime().and_utc().timestamp();
+        let diff_from_now = if end_now_timestramp_diff > 0
+        {
+            end_now_timestramp_diff as f64 / one_day as f64
+        }
+        else
+        {
+            0.0
+        };
+        let process = (100.0f64 - ((diff_from_now as f64 / diff_full_vacation as f64) * 100.0f64)).floor() as i64;
+        logger::info!("{} {}, {}%  {}",Self::round(diff_full_vacation, 2), Self::round(diff_from_now, 2), process, backtrace!());
+        Diff { days: Self::round(diff_full_vacation, 2), days_left: Self::round(diff_from_now,2), progress: process}
+    }
+    
+    fn round(x: f64, decimals: u32) -> f64 
+    {
+        let y = 10i32.pow(decimals) as f64;
+        (x * y).round() / y
     }
 }
 
@@ -172,15 +230,15 @@ impl Display for Date
 
 pub enum DateFormat
 {
-    ///Формат сериализации данных %Y-%m-%dT%H:%M:%S
+    /// 26-10-2022T13:23:52  
     Serialize,
-     ///Формат сериализации данных %d-%m-%YT%H:%M:%S
+    /// 2022-10-26T13:23:52  
     SerializeReverse,
-    ///Формат даты %d-%m-%Y
+    /// 26-10-2022  
     OnlyDate,
-    ///Формат даты dd.MM.yyyy
+    /// 26.10.2022  
     DotDate,
-    ///Формат 25 октября 2015
+    /// 25 октября 20122
     FullDate
 }
 
@@ -197,110 +255,36 @@ pub enum DateFormat
 //     format!("{year}-{month:02}-{day:02}T{hours:02}:{minutes:02}:{seconds:02}+{z:02}:00")
 // }
 
-// fn from_date_time_to_naive_date_time(value: DateTime<Local>) -> NaiveDateTime
-// {
-//     let time = NaiveTime::from_hms_opt(value.hour(), value.minute(), value.second()).expect("Ошибка первода даты из формата DateTime<Local> в формат NaiveTime");
-//     let date = NaiveDate::from_ymd_opt(value.year(), value.month(), value.day()).expect("Ошибка первода даты из формата DateTime<Local> в формат NaiveDate");
-//     NaiveDateTime::new(date, time)
-// }
-// fn from_u32(day: u32, month: u32, year:u32, hour:u32, minute: u32, second: u32) -> Date
-// {
-//     let time = NaiveTime::from_hms_opt(hour, minute, second).expect("Ошибка первода даты");
-//     let date = NaiveDate::from_ymd_opt(year as i32, month, day).expect("Ошибка первода даты");
-//     NaiveDateTime::new(date, time)
-// }
-
-
-// fn to_serialized(date: NaiveDateTime) -> String
-// {
-//     date.format(FORMAT_SERIALIZE_DATE_TIME).to_string()
-// }
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Copy, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct DaysProgress
+pub struct Diff
 {
     ///количество дней между начальной и конечной датой
-    pub days: i64,
+    pub days: f64,
     ///количество оставшихся дней от сегодняшней даты
-    pub days_left: i64,
+    pub days_left: f64,
     ///процент для прогрессбара 0-100% (количество оставшихся дней в процентах)
     pub progress: i64
-
 }
-impl Default for DaysProgress
+impl Default for Diff
 {
     fn default() -> Self 
     {
-        Self { days: 0, days_left: 0, progress: 100 }
-    }
-}
-impl DaysProgress
-{
-    ///на вход принимаент начальную дату и конечную дату <br>
-    /// 1-количество дней между начальной и конечной датой<br>
-    /// 2-количество оставшихся дней от сегодняшней даты<br>
-    /// 3-процент для прогрессбара 0-100% (количество оставшихся дней в процентах)
-    pub fn days_diff(start_date: &str, end_date: &str) -> Option<Self>
-    {
-        let start_date = Date::parse(start_date)?;
-        let end_date = Date::parse(end_date)?;
-        let date_now = Date::now();
-        let one_day = 86400; // секунд с сутках
-        let end_start_timestramp_diff = end_date.as_naive_datetime().and_utc().timestamp() - start_date.as_naive_datetime().and_utc().timestamp();
-        let diff_full_vacation = if end_start_timestramp_diff > 0
-        {
-            end_start_timestramp_diff / one_day
-        }
-        else
-        {
-            0
-        };
-        let end_now_timestramp_diff = end_date.as_naive_datetime().and_utc().timestamp() - date_now.as_naive_datetime().and_utc().timestamp();
-        let diff_from_now = if end_now_timestramp_diff > 0
-        {
-            end_now_timestramp_diff / one_day
-        }
-        else
-        {
-            0
-        };
-        let process = (100.0f64 - ((diff_from_now as f64 / diff_full_vacation as f64) * 100.0f64)).floor() as i64;
-        logger::info!("{} {}, {}%  {}",diff_full_vacation, diff_from_now, process, backtrace!());
-        Some(Self { days: diff_full_vacation, days_left: diff_from_now, progress: process})
+        Self { days: 0.0, days_left: 0.0, progress: 100 }
     }
 }
 
-
-//     const diffFromNow = ((end_date - date_now) / one_day) + 1;
-   
-//     return {
-//         progress: Math.abs((100 - Math.round((diffFromNow / diffFullVacation) * 100))),
-//         left: diffFromNow,
-//         overall: diffFullVacation
-//     };
-// }
-
-// type DateProgress = 
+// fn floor()
 // {
-//     /**Текущий процесс в процентах */
-//     progress: number,
-//     /**Количество в единицах сколько осталось */
-//     left: number,
-//     /**В единицах сколько между первой единицей и второй единицей */
-//     overall: number
+//     let r = 4/5;
+//     println!("{}",r);
 // }
-
-fn floor()
-{
-    let r = 4/5;
-    println!("{}",r);
-}
 
 #[cfg(test)]
 mod test
 {
-    use logger::{StructLogger, debug};
+    use logger::debug;
+    use serde::{Deserialize, Serialize};
     
     
     use super::
@@ -331,14 +315,37 @@ mod test
         debug!("Дата 12 12 2056: {}", Date::new_date(12, 12, 2056).to_string());
         
     }
+    #[derive(Debug, Clone, Serialize, Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    pub struct DP
+    {
+        ///количество дней между начальной и конечной датой
+        pub days: f64,
+        ///процент для прогрессбара 0-100% (количество оставшихся дней в процентах)
+        pub date: Date
+    }
+
+
+    #[test]
+    pub fn serialize_date() 
+    {
+        logger::StructLogger::initialize_logger();
+        let start_date = Date::parse("2024-04-24 08:50:00").unwrap();
+        let d = DP {days: 6.6654, date: start_date};
+        let s = serde_json::to_string(&d).unwrap();
+        //start_date.serialize(s);
+        debug!("{:?}", &s);
+        let structure: DP = serde_json::from_str(&s).unwrap();
+        debug!("{:?}", &structure);
+    }
 
     #[test]
     pub fn round() 
     {
         logger::StructLogger::initialize_logger();
-        let start_date = "2024-04-24 23:59:00";
-        let end_date = "2024-04-30 00:00:00";
-        let dd = super::DaysProgress::days_diff(start_date, end_date).unwrap();
+        let start_date = Date::parse("2024-04-24 08:50:00").unwrap();
+        let end_date = Date::parse("2024-04-30 08:59:00").unwrap();
+        let dd = start_date.diff(end_date);
         debug!("{:?}", dd);
     }
 
