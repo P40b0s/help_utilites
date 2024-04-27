@@ -9,12 +9,11 @@ impl Hasher
         Self::hashing(data)
     }
     
-    pub fn hash_from_path<P: AsRef<Path> + std::fmt::Display>(path: P) -> Option<String>
+    pub fn hash_from_path<P: AsRef<Path>>(path: P) -> Option<String>
     {
         crate::io::read_file_to_binary(&path).and_then(|f|
         {
             let hash = Self::hashing(&f);
-            logger::debug!("Создан хэш {} для файла {}", &hash, &path.to_string());
             Ok(hash)
         }).ok()
     }
