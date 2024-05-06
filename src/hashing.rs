@@ -19,7 +19,7 @@ impl Hasher
     }
     
     ///Создание хэша base64 из массива строк
-    pub fn hash_from_string<'a, S: AsRef<[&'a str]>>(args: S) -> String
+    pub fn hash_from_string<'a, I: IntoIterator<Item = S>, S: AsRef<str>>(args: I) -> String
     {
         let normalize_string = normalize(args);
         let args_bytes = normalize_string.as_bytes();
@@ -63,12 +63,12 @@ impl Hasher
 
 
 
-fn normalize<'a, S: AsRef<[&'a str]>>(args: S) -> String
+fn normalize<'a, I: IntoIterator<Item = S>, S: AsRef<str>>(args: I) -> String
 {
     let mut for_encode : String = String::new();
-    for o in args.as_ref()
+    for o in args
     {
-        let normalize = o.replace(" ", "").to_lowercase();
+        let normalize = o.as_ref().replace(" ", "").to_lowercase();
         for_encode.push_str(&normalize)
     }
     for_encode
@@ -87,6 +87,8 @@ mod test
     pub fn date_output() 
     {
         logger::StructLogger::initialize_logger();
+        let s = &["123", "456", "789"];
+        let tt = super::Hasher::hash_from_string(s);
         debug!("{} ", "");  
     }
 
