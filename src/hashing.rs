@@ -19,7 +19,7 @@ impl Hasher
     }
     
     ///Создание хэша base64 из массива строк
-    pub fn hash_from_string(args: &[&str]) -> String
+    pub fn hash_from_string<'a, S: AsRef<[&'a str]>>(args: S) -> String
     {
         let normalize_string = normalize(args);
         let args_bytes = normalize_string.as_bytes();
@@ -63,10 +63,10 @@ impl Hasher
 
 
 
-fn normalize(args: &[&str]) -> String
+fn normalize<'a, S: AsRef<[&'a str]>>(args: S) -> String
 {
     let mut for_encode : String = String::new();
-    for o in args
+    for o in args.as_ref()
     {
         let normalize = o.replace(" ", "").to_lowercase();
         for_encode.push_str(&normalize)
