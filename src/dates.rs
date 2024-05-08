@@ -247,6 +247,15 @@ impl Date
     //         }
     //     };
     // }
+
+    fn from_system_time(dt: std::time::SystemTime) -> Self
+    {
+     
+        let dt_now_local: chrono::DateTime<Local> = dt.into();
+        let n: NaiveDateTime = dt_now_local.naive_local();
+        Self(n)
+    
+    }
 }
 
 impl Display for Date
