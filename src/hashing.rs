@@ -1,6 +1,10 @@
-use std::path::{Display, Path};
+use std::path::Path;
 use blake2::{Blake2b512, Digest};
+use base64ct::{Base64, Encoding};
 
+
+///емкость буфера для  blake2b512 (to base64) = 88
+//const BUF_SIZE: usize = 88;
 pub struct Hasher{}
 impl Hasher
 {
@@ -19,24 +23,29 @@ impl Hasher
     }
     
     ///Создание хэша base64 из массива строк
-    pub fn hash_from_string<'a, I: IntoIterator<Item = S>, S: AsRef<str>>(args: I) -> String
+    pub fn hash_from_strings<I: IntoIterator<Item = S>, S: AsRef<str>>(args: I) -> String
     {
         let normalize_string = normalize(args);
         let args_bytes = normalize_string.as_bytes();
         Self::hashing(args_bytes)
     }
+    pub fn hash_from_string<S: AsRef<str>>(val: S) -> String
+    {
+        let normalize_string = normalize(&[val]);
+        let args_bytes = normalize_string.as_bytes();
+        Self::hashing(args_bytes)
+    }
+    ///создание хеша из массива байтов
     pub fn from_bytes_to_base64<S: AsRef<[u8]>>(v : S) -> String
     {
-        let str =  base64::display::Base64Display::with_config(v.as_ref(), base64::STANDARD);
-        str.to_string()
+        Base64::encode_string(v.as_ref())
     }
-    
     fn hashing<S: AsRef<[u8]>>(data: S) -> String
     {
         let mut hasher = Blake2b512::new();
         hasher.update(data);
         let hash = hasher.finalize();
-        let hash_vec: &[u8] = &hash[..];
+        let hash_vec: &[u8] = hash.as_ref();
         let hash_string = Self::from_bytes_to_base64(hash_vec);
         hash_string
         // //if let Ok(hash_string) = std::str::from_utf8(&hash_vec)
@@ -65,13 +74,9 @@ impl Hasher
 
 fn normalize<'a, I: IntoIterator<Item = S>, S: AsRef<str>>(args: I) -> String
 {
-    let mut for_encode : String = String::new();
-    for o in args
-    {
-        let normalize = o.as_ref().replace(" ", "").to_lowercase();
-        for_encode.push_str(&normalize)
-    }
-    for_encode
+    args.into_iter()
+        .map(|m| m.as_ref().replace(" ", "").to_lowercase())
+        .collect::<String>()
 }
 
 
@@ -81,15 +86,14 @@ fn normalize<'a, I: IntoIterator<Item = S>, S: AsRef<str>>(args: I) -> String
 mod test
 {
     use logger::debug;
-    use serde::{Deserialize, Serialize};
-
     #[test]
     pub fn date_output() 
     {
         logger::StructLogger::initialize_logger();
-        let s = &["123", "456", "789"];
-        let tt = super::Hasher::hash_from_string(s);
-        debug!("{} ", "");  
+        let s = &["1 ываываыва ыаваыва ыва ыва23", "45ыва ыва ыва ываываыва6", "78ацуацуаца ывацуац уацуац вацуа цуацуа цуа 9"];
+        let tt = super::Hasher::hash_from_strings(s);
+        debug!("{}", &tt); 
+        assert_eq!(tt, "OxDqYVEd8T//XVBGN3sD2lZ6mVMD3XLcDsKFNnOnD2m2WRu1vHpeFa4nSLsXHQQ6W1YrELQ/9xzF+kYmpY3xAw==".to_owned());
     }
 
 
