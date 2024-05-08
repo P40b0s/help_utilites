@@ -248,7 +248,7 @@ impl Date
     //     };
     // }
 
-    fn from_system_time(dt: std::time::SystemTime) -> Self
+    pub fn from_system_time(dt: std::time::SystemTime) -> Self
     {
      
         let dt_now_local: chrono::DateTime<Local> = dt.into();
