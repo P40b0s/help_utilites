@@ -223,6 +223,14 @@ impl Date
         }
         false
     }
+    pub fn date_is_equalis(&self, other: &Date) -> bool
+    {
+        if other.0.date() == self.0.date()
+        {
+            return true
+        }
+        false
+    }
 
     fn add_time_to_end_day(self) -> Self
     {
