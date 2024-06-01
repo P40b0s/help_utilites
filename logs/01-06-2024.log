@@ -1,0 +1,12 @@
+[01-06-2024 22:34:19]:⚙ DEBUG -> IncludeDates { in_range: false, from: None, to: None }
+[01-06-2024 22:34:44]:⚙ DEBUG -> IncludeDates { in_range: false, from: None, to: None }
+[01-06-2024 22:39:40]:⚙ DEBUG -> IncludeDates { in_range: true, from: Some(Date(2024-04-30T07:50:00)), to: Some(Date(2024-04-30T07:50:00)) }
+[01-06-2024 22:40:26]:⚙ DEBUG -> IncludeDates { in_range: true, from: Some(Date(2024-04-30T07:50:00)), to: Some(Date(2024-04-30T08:51:00)) }
+[01-06-2024 22:40:44]:⚙ DEBUG -> IncludeDates { in_range: true, from: Some(Date(2024-04-30T07:50:00)), to: Some(Date(2024-04-30T08:50:00)) }
+[01-06-2024 22:40:56]:⚙ DEBUG -> IncludeDates { in_range: false, from: None, to: None }
+[01-06-2024 22:41:41]:⚙ DEBUG -> IncludeDates { in_range: true, from: Some(Date(2024-04-30T11:50:00)), to: Some(Date(2024-04-30T12:50:00)) }
+[01-06-2024 22:48:51]:⚙ DEBUG -> Some(IncludeDates { in_range: true, from: Some(Date(2024-04-30T07:50:00)), to: Some(Date(2024-04-30T08:49:00)), source_from: Some(Date(2024-04-30T11:50:00)), source_to: Some(Date(2024-04-30T11:59:00)) })
+[01-06-2024 22:49:48]:⚙ DEBUG -> Some(IncludeDates { in_range: true, from: Some(Date(2024-04-30T11:50:00)), to: Some(Date(2024-04-30T12:50:00)), source_from: Some(Date(2024-04-30T11:50:00)), source_to: Some(Date(2024-04-30T11:59:00)) })
+[01-06-2024 22:52:45]:⚙ DEBUG -> Some(IncludeDates { in_range: true, from: Date(2024-04-30T11:50:00), to: Date(2024-04-30T12:50:00), source_from: Date(2024-04-30T11:50:00), source_to: Date(2024-04-30T11:59:00) })
+[01-06-2024 22:57:06]:⚙ DEBUG -> Временной отрезок 30-04-2024T11:50:00->30-04-2024T11:59:00 находиться внутри отрезка 30-04-2024T11:50:00->30-04-2024T12:50:00
+[01-06-2024 22:58:42]:⚙ DEBUG -> Зафиксировано персечение временных отрезков 30-04-2024T11:50:00@30-04-2024T11:59:00 и 30-04-2024T11:50:00@30-04-2024T12:50:00

@@ -1,6 +1,6 @@
-use std::{borrow::Cow, fmt::Display};
+use std::{borrow::Cow, fmt::{Display, Write}};
 
-use chrono::{NaiveDateTime, Local, DateTime, NaiveDate, Datelike, NaiveTime, Timelike};
+use chrono::{DateTime, Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, Timelike};
 use logger::{error, backtrace};
 use serde::{Deserialize, Serialize};
 pub const FORMAT_SERIALIZE_DATE_TIME: &'static str = "%Y-%m-%dT%H:%M:%S";
@@ -11,6 +11,23 @@ pub const FORMAT_DOT_DATE: &'static str = "%d.%m.%Y";
 pub const FORMAT_DASH_DATE: &'static str = "%d-%m-%Y";
 pub const FORMAT_FULL_DATE: &'static str = "%d %m %Y";
 
+#[derive(Debug, Clone)]
+pub struct IncludeDates<'a>
+{
+    from: &'a Date,
+    to: &'a Date,
+    source_from: &'a Date,
+    source_to: &'a Date
+}
+
+impl<'a> Display for IncludeDates<'a>
+{
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result 
+    {
+        let frmt = format!("Зафиксировано персечение временных отрезков {}@{} и {}@{}", self.source_from, self.source_to, self.from, self.to);
+        f.write_str(&frmt)
+    }
+}
 #[derive(Debug, Clone)]
 /// Объект хранящий дату время, пока без оффсета
 pub struct Date(NaiveDateTime);
@@ -170,6 +187,34 @@ impl Date
             }
         }  
     }
+    pub fn add_minutes(self, minutes: i64) -> Self
+    {
+        let s = Self(self.0.checked_add_signed(TimeDelta::try_seconds(minutes).unwrap()).unwrap());
+        s
+    }
+
+    
+
+    ///Если временные отрезки пересекаются, то вернется объект IncludeDates с первым попавшимся пересечением
+    pub fn in_range<'a>(source: (&'a Date, &'a Date), range: &[(&'a Date, &'a Date)]) -> Option<IncludeDates<'a>>
+    {
+        for r in range
+        {
+            if !((source.0.0 < r.0.0 && source.1.0 < r.0.0)
+            || (source.0.0 > r.1.0 && source.1.0 > r.1.0))
+            {
+                return Some(IncludeDates
+                {
+                    from: r.0,
+                    to:  r.1,
+                    source_from: source.0,
+                    source_to: source.1
+                })
+            }
+        }
+        None
+    }
+
     fn add_time_to_end_day(self) -> Self
     {
         if self.0.hour() == 0 && self.0.minute() == 0 && self.0.second() == 0
@@ -280,6 +325,7 @@ pub enum DateFormat
     FullDate
 }
 
+
 // pub fn get_date(day: u32, month: u32, year: u32) -> String
 // {
 //     format!("{year}-{month:02}-{day:02}")
@@ -385,6 +431,27 @@ mod test
         let end_date = Date::parse("2024-04-30 08:59:00").unwrap();
         let dd = start_date.diff(end_date);
         debug!("{:?}", dd);
+    }
+    #[test]
+    pub fn test_in_range() 
+    {
+        logger::StructLogger::initialize_logger();
+        let start_date = Date::parse("2024-04-30 11:50:00").unwrap();
+        let end_date = Date::parse("2024-04-30 11:59:00").unwrap();
+
+        let a1 = Date::parse("2024-04-30 07:50:00").unwrap();
+        let a2 = Date::parse("2024-04-30 08:49:00").unwrap();
+        let b1 = Date::parse("2024-04-30 09:51:00").unwrap();
+        let b2 = Date::parse("2024-04-30 10:50:00").unwrap();
+        let c1 = Date::parse("2024-04-30 11:50:00").unwrap();
+        let c2 = Date::parse("2024-04-30 12:50:00").unwrap();
+        let arr : Vec<(&Date, &Date)> = vec![
+            (&a1, &a2),
+            (&b1, &b2),
+            (&c1, &c2),
+        ];
+        let res = super::Date::in_range((&start_date, &end_date), &arr);
+        debug!("{}", res.unwrap());
     }
 
 }
