@@ -214,6 +214,15 @@ impl Date
         }
         None
     }
+    pub fn is_today(&self) -> bool
+    {
+        let today = Self::now();
+        if today.0.date() == self.0.date()
+        {
+            return true
+        }
+        false
+    }
 
     fn add_time_to_end_day(self) -> Self
     {
