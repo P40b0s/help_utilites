@@ -1,4 +1,5 @@
 use std::net::SocketAddr;
+use hashbrown::HashMap;
 use http_body_util::{BodyExt, Full};
 use hyper::{body::Bytes, header::{self, CONTENT_TYPE, HOST}, Request, Response, StatusCode, Uri};
 use hyper_util::rt::TokioIo;
@@ -114,6 +115,20 @@ pub async fn get<O>(uri: Uri) -> Result<O, Error> where for<'de> O: Deserialize<
         logger::error!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status());
         return Err(Error::SendError(format!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status())));
     }
+}
+
+///Получение словаря запросу по url в формате ключ\значение
+pub fn get_query(uri: &Uri) -> Option<HashMap<String, String>>
+{
+    let params: Option<HashMap<String, String>> = uri
+    .query()
+    .map(|v| 
+    {
+        url::form_urlencoded::parse(v.as_bytes())
+            .into_owned()
+            .collect()
+    });
+    params
 }
 
 
