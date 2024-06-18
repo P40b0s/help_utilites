@@ -23,4 +23,4 @@ pub use retry::retry;
 #[cfg(feature="http")]
 pub mod http;
 #[cfg(feature="http")]
-pub use http::{get, post, post_with_params};
+pub use url::*;
