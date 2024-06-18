@@ -57,7 +57,7 @@ impl<'a> Serialize for Date
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self.format(DateFormat::SerializeReverse))
+        serializer.serialize_str(&self.format(DateFormat::Serialize))
     }
 }
 
@@ -335,9 +335,9 @@ impl Display for Date
 
 pub enum DateFormat
 {
-    /// 26-10-2022T13:23:52  
-    Serialize,
     /// 2022-10-26T13:23:52  
+    Serialize,
+    /// 26-10-2022T13:23:52  
     SerializeReverse,
     /// 26-10-2022  
     OnlyDate,
