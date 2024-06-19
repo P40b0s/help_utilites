@@ -10,6 +10,7 @@ pub const FORMAT_SERIALIZE_DATE_TIME_WS: &'static str = "%Y-%m-%d %H:%M:%S";
 pub const FORMAT_DOT_DATE: &'static str = "%d.%m.%Y";
 pub const FORMAT_DASH_DATE: &'static str = "%d-%m-%Y";
 pub const FORMAT_FULL_DATE: &'static str = "%d %m %Y";
+pub const FORMAT_JOIN_DATE: &'static str = "%Y%m%d";
 
 #[derive(Debug, Clone)]
 pub struct IncludeDates<'a>
@@ -70,6 +71,7 @@ impl Date
     /// 26.10.2022  
     /// 26-10-2022  
     /// 26 ноября 2022
+    /// 20240618
     pub fn parse<'a, F: Into<Cow<'a, str>>>(date: F) -> Option<Self>
     {
         let date = date.into();
@@ -100,9 +102,14 @@ impl Date
             let dt = dt.and_hms_opt(0, 0, 0).unwrap();
             Some(Date(dt))
         }
+        else if let Ok(dt) = NaiveDate::parse_from_str(&date, FORMAT_JOIN_DATE)
+        {
+            let dt =  dt.and_hms_opt(0, 0, 0).unwrap();
+            Some(Date(dt))
+        }
         else 
         {
-            error!("Ошибка входного формата данных - {}. Поддерживаются форматы: {}, {}, {}, {}", &date, FORMAT_DOT_DATE, FORMAT_SERIALIZE_DATE_TIME, FORMAT_SERIALIZE_DATE_TIME_REVERSE, FORMAT_SERIALIZE_DATE_TIME_WS);
+            error!("Ошибка входного формата данных - {}. Поддерживаются форматы: {}, {}, {}, {}, {}", &date, FORMAT_JOIN_DATE, FORMAT_DOT_DATE, FORMAT_SERIALIZE_DATE_TIME, FORMAT_SERIALIZE_DATE_TIME_REVERSE, FORMAT_SERIALIZE_DATE_TIME_WS);
             None
         }
     }
@@ -178,6 +185,7 @@ impl Date
             DateFormat::SerializeReverse => self.0.format(FORMAT_SERIALIZE_DATE_TIME_REVERSE).to_string(),
             DateFormat::OnlyDate => self.0.format(FORMAT_DASH_DATE).to_string(),
             DateFormat::DotDate => self.0.format(FORMAT_DOT_DATE).to_string(),
+            DateFormat::JoinDate => self.0.format(FORMAT_JOIN_DATE).to_string(),
             DateFormat::FullDate => 
             {
                 let day = self.0.day();
@@ -344,7 +352,9 @@ pub enum DateFormat
     /// 26.10.2022  
     DotDate,
     /// 25 октября 20122
-    FullDate
+    FullDate,
+    /// 20240618
+    JoinDate
 }
 
 
