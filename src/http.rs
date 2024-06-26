@@ -1,7 +1,7 @@
-use std::net::SocketAddr;
+use std::{net::SocketAddr, time::Duration};
 use hashbrown::HashMap;
 use http_body_util::{BodyExt, Full};
-use hyper::{body::Bytes, header::{self, CONTENT_TYPE, HOST}, Request, Response, StatusCode, Uri};
+use hyper::{body::Bytes, header::{self, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONNECTION, CONTENT_TYPE, HOST, USER_AGENT}, Request, Response, StatusCode, Uri};
 use hyper_util::rt::TokioIo;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpStream;
@@ -181,6 +181,65 @@ pub fn unauthorized_response() -> Response<BoxBody>
     .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
     .body(to_body(Bytes::from_static(b"Unauthorized")))
     .unwrap()
+}
+
+/// Запрос формируем сами, так быстрее будет, в него же включаем передаваемое значение если нужно
+pub async fn request_with_retry<R>(req: Request<BoxBody>) -> Result<R, Error>
+where for <'de> R: Deserialize<'de>
+{
+    let host = if let Some(h) = req.headers().get("Host")
+    {
+        h.to_str().unwrap().to_owned()
+    }
+    else
+    {
+        "".to_owned()
+    };
+    logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
+    logger::info!("host: {}", &host);
+    let client_stream = TcpStream::connect(&host).await;
+    //let client_stream = TcpStream::connect("95.173.157.133:8000").await;
+    if client_stream.is_err()
+    {
+        logger::error!("Ошибка подключения к сервису {} -> {}", host.clone(), client_stream.err().unwrap());
+        return Err(Error::SendError(host.clone()));
+    }
+    let io = TokioIo::new(client_stream.unwrap());
+    
+    let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
+    tokio::task::spawn(async move 
+    {
+        if let Err(err) = conn.await 
+        {
+            logger::error!("Ошибка подключения: {:?}", err);
+        }
+    });
+    let send = sender.send_request(req);
+    match tokio::time::timeout(Duration::from_secs(2), send).await 
+    {
+        Ok(result) => match result 
+        {
+            Ok(r) => 
+            if r.status() == StatusCode::OK
+            {
+                let body = r.collect().await?.to_bytes();
+                let response: R = serde_json::from_slice(&body)?;
+                return Ok(response);
+            }
+            else
+            {
+                logger::error!("Ошибка получения инфомации от сервиса {} -> {}", &host, r.status());
+                return Err(Error::SendError(format!("Ошибка получения инфомации от сервиса {} -> {}", &host, r.status())));
+            },
+            Err(e) => return Err(Error::HyperError(e))
+        },
+        Err(_) =>
+        {
+            let e = format!("Нет ответа от сервера {} > 2 секунд", &host);
+            logger::warn!("{}", &e);
+            return Err(Error::SendError(e));
+        }
+    }
 }
 
 
