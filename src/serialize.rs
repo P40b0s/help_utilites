@@ -2,6 +2,8 @@ use std::{fmt, fs::OpenOptions, io::{BufWriter, Write}, path::PathBuf, str::From
 use logger::error;
 use serde::{de, Deserialize, Deserializer, Serialize};
 
+use crate::Date;
+
 ///Сериализация объекта в строковый формат
 pub fn serialize_to_file<T>(json : T, file_name : &str, directory: Option<&str>) -> Result<(), String> where T : Clone + Serialize
 {
@@ -67,3 +69,14 @@ where
         Some(s) => FromStr::from_str(s).map_err(de::Error::custom).map(Some),
     }
 }
+#[cfg(feature="dates")]
+pub fn deserialize_date<'de, D>(deserializer: D) -> Result<Date, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let s: &str = serde::de::Deserialize::deserialize(deserializer)?;
+    Date::parse(s).ok_or(serde::de::Error::custom(format!("Формат даты {} не поддерживается", s)))
+}
+
+
+

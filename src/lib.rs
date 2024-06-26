@@ -3,7 +3,7 @@ mod io;
 pub mod error;
 pub use io::read_file_to_binary;
 mod serialize;
-pub use serialize::{serialize_to_file, empty_string_as_none, null_string_as_none};
+pub use serialize::*;
 
 #[cfg(feature="dates")]
 mod dates;
