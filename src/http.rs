@@ -123,7 +123,7 @@ pub async fn get_body(req: Request<BoxBody>) -> Result<Bytes, Error>
     logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
     let addr: SocketAddr = host.parse().unwrap();
     let client_stream = match tokio::time::timeout(
-        Duration::from_secs(2),
+        Duration::from_secs(20),
         tokio::net::TcpStream::connect(&addr)
     )
     .await
