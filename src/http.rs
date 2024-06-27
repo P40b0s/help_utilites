@@ -337,12 +337,13 @@ where U: IntoUrl
             &[]
         };
         
-            Ok(cl.headers(headers)
-            .form(params)
-            .send()
-            .await?
-            .bytes()
-            .await?)
+        let response = cl.headers(headers)
+        .form(params)
+        .send()
+        .await?
+        .bytes()
+        .await?;
+    Ok(response)
     }
     pub async fn post_with_body<S: Serialize>(&self, body: &S, query_params: Option<&[(&'static str, &'static str)]>) -> Result<Bytes, Error>
     {
@@ -366,11 +367,13 @@ where U: IntoUrl
             &[]
         };
         
-            Ok(cl.headers(headers)
-            .form(params)
-            .json(body)
-            .send()
-            .await?.bytes().await?)
+        let response = cl.headers(headers)
+        .form(params)
+        .send()
+        .await?
+        .bytes()
+        .await?;
+    Ok(response)
     }
     pub async fn get_with_params(&self, query_params: Option<&[(&'static str, &'static str)]>) -> Result<Bytes, Error>
     {
@@ -394,12 +397,13 @@ where U: IntoUrl
             &[]
         };
         
-            Ok(cl.headers(headers)
-            .form(params)
-            .send()
-            .await?
-            .bytes()
-            .await?)
+        let response = cl.headers(headers)
+        .form(params)
+        .send()
+        .await?
+        .bytes()
+        .await?;
+    Ok(response)
     }
 }
 
