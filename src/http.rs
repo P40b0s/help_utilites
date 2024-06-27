@@ -4,6 +4,7 @@ pub use http_body_util::{BodyExt, Full};
 pub use hyper::{body::Bytes, header::{self, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONNECTION, CONTENT_TYPE, HOST, USER_AGENT}, Request, Response, StatusCode, Uri};
 pub use hyper_util::rt::TokioIo;
 use serde::{Deserialize, Serialize};
+use tokio::net::TcpSocket;
 pub use tokio::net::TcpStream;
 use crate::error::Error;
 pub type BoxBody = http_body_util::combinators::BoxBody<Bytes, hyper::Error>;
@@ -121,13 +122,22 @@ pub async fn get_body(req: Request<BoxBody>) -> Result<Bytes, Error>
     let host = req.uri().authority().unwrap().as_str().replace("localhost", "127.0.0.1");
     logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
     let addr: SocketAddr = host.parse().unwrap();
-    let client_stream = TcpStream::connect(&addr).await;
-    if client_stream.is_err()
+    let client_stream = match tokio::time::timeout(
+        Duration::from_secs(2),
+        tokio::net::TcpStream::connect(&addr)
+    )
+    .await
     {
-        logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
-        return Err(Error::SendError(addr.to_string()));
-    }
-    let io = TokioIo::new(client_stream.unwrap());
+        Ok(ok) => ok.map_err(|e| Error::SendError(format!("Ошибка соединения с сервером : {}", e))),
+        Err(e) => Err(Error::SendError(format!("таймаут соединения с сервером : {}", e))),
+    }?;
+    //let client_stream = TcpStream::connect(&addr).await;
+    // if client_stream.is_err()
+    // {
+    //     logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
+    //     return Err(Error::SendError(addr.to_string()));
+    // }
+    let io = TokioIo::new(client_stream);
     let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
     tokio::task::spawn(async move 
         {
