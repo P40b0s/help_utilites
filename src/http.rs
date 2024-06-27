@@ -1,4 +1,4 @@
-use std::{net::SocketAddr, time::Duration};
+use std::{any::TypeId, net::SocketAddr, time::Duration};
 use hashbrown::HashMap;
 pub use http_body_util::{BodyExt, Full};
 pub use hyper::{body::Bytes, header::{self, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONNECTION, CONTENT_TYPE, HOST, USER_AGENT}, Request, Response, StatusCode, Uri};
@@ -184,8 +184,7 @@ pub fn unauthorized_response() -> Response<BoxBody>
 }
 
 /// Запрос формируем сами, так быстрее будет, в него же включаем передаваемое значение если нужно
-pub async fn request_with_retry<R>(req: Request<BoxBody>) -> Result<R, Error>
-where for <'de> R: Deserialize<'de>
+pub async fn request_with_retry(req: Request<BoxBody>) -> Result<Bytes, Error>
 {
     let host = if let Some(h) = req.uri().authority()
     {
@@ -231,8 +230,9 @@ where for <'de> R: Deserialize<'de>
             if r.status() == StatusCode::OK
             {
                 let body = r.collect().await?.to_bytes();
-                let response: R = serde_json::from_slice(&body)?;
-                return Ok(response);
+                //if TypeId::of::<R>() == TypeId::of::<Bytes>
+                //let response: R = serde_json::from_slice(&body)?;
+                return Ok(body);
             }
             else
             {
