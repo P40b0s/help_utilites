@@ -1,6 +1,7 @@
 use std::{any::TypeId, net::SocketAddr, time::Duration};
 use hashbrown::HashMap;
 pub use http_body_util::{BodyExt, Full};
+use hyper::header::HeaderName;
 pub use hyper::{body::Bytes, header::{HeaderValue, HeaderMap, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONNECTION, CONTENT_TYPE, HOST, USER_AGENT}, Request, Response, StatusCode, Uri};
 pub use hyper_util::rt::TokioIo;
 use reqwest::IntoUrl;
@@ -304,12 +305,12 @@ where U: IntoUrl
             path: url,
         }
     }
-    pub fn with_headers(mut self, headers: &[(&'static str, &'static str)]) -> Self
+    pub fn with_headers(mut self, headers: &[(HeaderName, &'static str)]) -> Self
     {
         let mut hmap: HeaderMap<HeaderValue> = HeaderMap::new();
         for h in headers
         {
-            hmap.insert(h.0, h.1.parse().unwrap());
+            hmap.insert(h.0.clone(), h.1.parse().unwrap());
         }
         self.headers = Some(hmap);
         self
