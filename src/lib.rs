@@ -4,7 +4,6 @@ pub mod error;
 pub use io::read_file_to_binary;
 mod serialize;
 pub use serialize::*;
-
 #[cfg(feature="dates")]
 mod dates;
 #[cfg(feature="dates")]

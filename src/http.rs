@@ -116,6 +116,38 @@ pub async fn get<O>(uri: Uri) -> Result<O, Error> where for<'de> O: Deserialize<
         return Err(Error::SendError(format!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status())));
     }
 }
+pub async fn get_body(req: Request<BoxBody>) -> Result<Bytes, Error>
+{
+    let host = req.uri().authority().unwrap().as_str().replace("localhost", "127.0.0.1");
+    logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
+    let addr: SocketAddr = host.parse().unwrap();
+    let client_stream = TcpStream::connect(&addr).await;
+    if client_stream.is_err()
+    {
+        logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
+        return Err(Error::SendError(addr.to_string()));
+    }
+    let io = TokioIo::new(client_stream.unwrap());
+    let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
+    tokio::task::spawn(async move 
+        {
+            if let Err(err) = conn.await 
+            {
+                logger::error!("Ошибка подключения: {:?}", err);
+            }
+        });
+    let send = sender.send_request(req).await?;
+    if send.status() == StatusCode::OK
+    {
+        let body = send.collect().await?.to_bytes();
+        Ok(body)
+    }
+    else
+    {
+        logger::error!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status());
+        return Err(Error::SendError(format!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status())));
+    }
+}
 
 ///Получение словаря запросу по url в формате ключ\значение
 pub fn get_query(uri: &Uri) -> Option<HashMap<String, String>>
@@ -200,7 +232,7 @@ pub async fn request_with_retry(req: Request<BoxBody>) -> Result<Bytes, Error>
     }
     else
     {
-        return Err(Error::SendError(format!("В звпросе {} не найден адрес сервера", req.uri().to_string())));
+        return Err(Error::SendError(format!("В запросе {} не найден адрес сервера", req.uri().to_string())));
     };
     logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(),  req.headers());
     logger::info!("tcp address: {}", &host);
