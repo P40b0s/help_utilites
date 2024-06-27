@@ -17,4 +17,7 @@ pub enum Error
     StationServiceError(String),
     #[error("Ошибка подключения к сервису `{0}` при отправке сообщения")]
     SendError(String),
+    #[error(transparent)]
+    #[cfg(feature="http")]
+    ReqwestError(#[from] reqwest::Error),
 }

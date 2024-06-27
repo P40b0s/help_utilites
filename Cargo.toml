@@ -7,7 +7,7 @@ edition = "2021"
 default = ["dates", "hashing", "retry", "http"]
 dates = ["dep:chrono"]
 hashing = ["dep:blake2", "dep:hashbrown", "dep:base64ct"]
-http = ["dep:hyper","dep:url", "dep:hyper-util", "dep:http-body-util", "dep:tower-http", "dep:tokio", "dep:tokio-test"]
+http = ["dep:hyper","dep:url", "dep:hyper-util", "dep:http-body-util", "dep:tower-http", "dep:tokio", "dep:tokio-test", "dep:reqwest"]
 retry = ["dep:tokio"]
 # flexbuffers = ["dep:flexbuffers"]
 # binary = ["dep:bitcode"]
@@ -33,3 +33,4 @@ tower-http = {version = "0.5.2", optional = true, features = ["cors", "fs", "tra
 tokio = { version = "1.38.0",optional = true, features = ["macros", "rt", "rt-multi-thread", "test-util"] }
 tokio-test= {version ="*", optional = true}
 url = {version="2.5.0", optional = true}
+reqwest = {version="0.12.5", optional = true}

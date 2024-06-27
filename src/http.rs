@@ -1,12 +1,13 @@
 use std::{any::TypeId, net::SocketAddr, time::Duration};
 use hashbrown::HashMap;
 pub use http_body_util::{BodyExt, Full};
-pub use hyper::{body::Bytes, header::{self, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONNECTION, CONTENT_TYPE, HOST, USER_AGENT}, Request, Response, StatusCode, Uri};
+pub use hyper::{body::Bytes, header::{HeaderValue, HeaderMap, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONNECTION, CONTENT_TYPE, HOST, USER_AGENT}, Request, Response, StatusCode, Uri};
 pub use hyper_util::rt::TokioIo;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpSocket;
 pub use tokio::net::TcpStream;
 use crate::error::Error;
+pub use reqwest;
 pub type BoxBody = http_body_util::combinators::BoxBody<Bytes, hyper::Error>;
 
 
@@ -122,22 +123,13 @@ pub async fn get_body(req: Request<BoxBody>) -> Result<Bytes, Error>
     let host = req.uri().authority().unwrap().as_str().replace("localhost", "127.0.0.1");
     logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
     let addr: SocketAddr = host.parse().unwrap();
-    let client_stream = match tokio::time::timeout(
-        Duration::from_secs(20),
-        tokio::net::TcpStream::connect(&addr)
-    )
-    .await
+    let client_stream = TcpStream::connect(&addr).await;
+    if client_stream.is_err()
     {
-        Ok(ok) => ok.map_err(|e| Error::SendError(format!("Ошибка соединения с сервером : {}", e))),
-        Err(e) => Err(Error::SendError(format!("таймаут соединения с сервером : {}", e))),
-    }?;
-    //let client_stream = TcpStream::connect(&addr).await;
-    // if client_stream.is_err()
-    // {
-    //     logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
-    //     return Err(Error::SendError(addr.to_string()));
-    // }
-    let io = TokioIo::new(client_stream);
+        logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
+        return Err(Error::SendError(addr.to_string()));
+    }
+    let io = TokioIo::new(client_stream.unwrap());
     let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
     tokio::task::spawn(async move 
         {
@@ -191,7 +183,7 @@ pub fn error_response(err: String, code: StatusCode) -> Response<BoxBody>
 {
     Response::builder()
     .status(code)
-    .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+    .header(CONTENT_TYPE, "text/html; charset=utf-8")
     .body(to_body(Bytes::from(err))).unwrap()
 }
 pub fn error_empty_response(code: StatusCode) -> Response<BoxBody>
@@ -204,7 +196,7 @@ pub fn ok_response(msg: String) -> Response<BoxBody>
 {
     Response::builder()
     .status(StatusCode::OK)
-    .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+    .header(CONTENT_TYPE, "text/html; charset=utf-8")
     .body(to_body(Bytes::from(msg))).unwrap()
 }
 pub fn json_response<S: Serialize>(obj: &S) -> Response<BoxBody>
@@ -212,7 +204,7 @@ pub fn json_response<S: Serialize>(obj: &S) -> Response<BoxBody>
     let result = serde_json::to_string(obj).unwrap();
     Response::builder()
     .status(StatusCode::OK)
-    .header(header::CONTENT_TYPE, "application/json")
+    .header(CONTENT_TYPE, "application/json")
     .body(to_body(Bytes::from(result))).unwrap()
 }
 
@@ -220,7 +212,7 @@ pub fn unauthorized_response() -> Response<BoxBody>
 {
     Response::builder()
     .status(StatusCode::UNAUTHORIZED)
-    .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
+    .header(CONTENT_TYPE, "text/html; charset=utf-8")
     .body(to_body(Bytes::from_static(b"Unauthorized")))
     .unwrap()
 }
@@ -291,6 +283,9 @@ pub async fn request_with_retry(req: Request<BoxBody>) -> Result<Bytes, Error>
         }
     }
 }
+
+
+
 
 
 mod encoding
