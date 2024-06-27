@@ -315,7 +315,7 @@ where U: IntoUrl
         self.headers = Some(hmap);
         self
     }
-    pub async fn post_with_params(&self, query_params: Option<&[(&'static str, &'static str)]>) -> Result<reqwest::Response, Error>
+    pub async fn post_with_params(&self, query_params: Option<&[(&'static str, &'static str)]>) -> Result<Bytes, Error>
     {
 
         let url = self.path.as_str();
@@ -340,9 +340,11 @@ where U: IntoUrl
             Ok(cl.headers(headers)
             .form(params)
             .send()
+            .await?
+            .bytes()
             .await?)
     }
-    pub async fn post_with_body<S: Serialize>(&self, body: &S, query_params: Option<&[(&'static str, &'static str)]>) -> Result<reqwest::Response, Error>
+    pub async fn post_with_body<S: Serialize>(&self, body: &S, query_params: Option<&[(&'static str, &'static str)]>) -> Result<Bytes, Error>
     {
 
         let url = self.path.as_str();
@@ -368,9 +370,9 @@ where U: IntoUrl
             .form(params)
             .json(body)
             .send()
-            .await?)
+            .await?.bytes().await?)
     }
-    pub async fn get_with_params(&self, query_params: Option<&[(&'static str, &'static str)]>) -> Result<reqwest::Response, Error>
+    pub async fn get_with_params(&self, query_params: Option<&[(&'static str, &'static str)]>) -> Result<Bytes, Error>
     {
 
         let url = self.path.as_str();
@@ -395,6 +397,8 @@ where U: IntoUrl
             Ok(cl.headers(headers)
             .form(params)
             .send()
+            .await?
+            .bytes()
             .await?)
     }
 }
