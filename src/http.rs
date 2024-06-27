@@ -187,16 +187,24 @@ pub fn unauthorized_response() -> Response<BoxBody>
 pub async fn request_with_retry<R>(req: Request<BoxBody>) -> Result<R, Error>
 where for <'de> R: Deserialize<'de>
 {
-    let host = if let Some(h) = req.headers().get("Host")
+    let host = if let Some(h) = req.uri().authority()
     {
-        h.to_str().unwrap().to_owned()
+       
+        if let Some(p) = req.uri().port()
+        {
+            [h.as_str(), p.as_str()].concat()
+        }
+        else
+        {
+            h.as_str().to_owned()
+        }
     }
     else
     {
         "".to_owned()
     };
-    logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
-    logger::info!("host: {}", &host);
+    logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(),  req.headers());
+    logger::info!("tcp address: {}", &host);
     let client_stream = TcpStream::connect(&host).await;
     //let client_stream = TcpStream::connect("95.173.157.133:8000").await;
     if client_stream.is_err()
