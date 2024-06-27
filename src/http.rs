@@ -190,18 +190,18 @@ where for <'de> R: Deserialize<'de>
     let host = if let Some(h) = req.uri().authority()
     {
        
-        if let Some(p) = req.uri().port()
-        {
-            [h.as_str(), p.as_str()].concat()
-        }
-        else
-        {
+        // if let Some(p) = req.uri().port()
+        // {
+        //     [h.as_str(), p.as_str()].concat()
+        // }
+        // else
+        // {
             h.as_str().to_owned()
-        }
+        // }
     }
     else
     {
-        "".to_owned()
+        return Err(Error::SendError(format!("В звпросе {} не найден адрес сервера", req.uri().to_string())));
     };
     logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(),  req.headers());
     logger::info!("tcp address: {}", &host);
