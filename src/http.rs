@@ -3,6 +3,7 @@ use hashbrown::HashMap;
 pub use http_body_util::{BodyExt, Full};
 pub use hyper::{body::Bytes, header::{HeaderValue, HeaderMap, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONNECTION, CONTENT_TYPE, HOST, USER_AGENT}, Request, Response, StatusCode, Uri};
 pub use hyper_util::rt::TokioIo;
+use reqwest::IntoUrl;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpSocket;
 pub use tokio::net::TcpStream;
@@ -285,6 +286,117 @@ pub async fn request_with_retry(req: Request<BoxBody>) -> Result<Bytes, Error>
 }
 
 
+pub struct HttpClient<U: IntoUrl>
+{
+    client: reqwest::Client,
+    headers: Option<HeaderMap<HeaderValue>>,
+    path: U,
+}
+impl<U> HttpClient<U>
+where U: IntoUrl
+{
+    pub fn new(url: U) -> Self
+    {
+        Self
+        {
+            client: reqwest::Client::new(),
+            headers: None,
+            path: url,
+        }
+    }
+    pub fn with_headers(mut self, headers: &[(&'static str, &'static str)]) -> Self
+    {
+        let mut hmap: HeaderMap<HeaderValue> = HeaderMap::new();
+        for h in headers
+        {
+            hmap.insert(h.0, h.1.parse().unwrap());
+        }
+        self.headers = Some(hmap);
+        self
+    }
+    pub async fn post_with_params(&self, query_params: Option<&[(&'static str, &'static str)]>) -> Result<reqwest::Response, Error>
+    {
+
+        let url = self.path.as_str();
+        let cl = self.client.post(url);
+        let headers = if let Some(h) = self.headers.as_ref()
+        {
+            h.clone()
+        }
+        else
+        {
+            HeaderMap::new()
+        };
+        let params = if let Some(params) = query_params
+        {
+            params
+        }
+        else
+        {
+            &[]
+        };
+        
+            Ok(cl.headers(headers)
+            .form(params)
+            .send()
+            .await?)
+    }
+    pub async fn post_with_body<S: Serialize>(&self, body: &S, query_params: Option<&[(&'static str, &'static str)]>) -> Result<reqwest::Response, Error>
+    {
+
+        let url = self.path.as_str();
+        let cl = self.client.post(url);
+        let headers = if let Some(h) = self.headers.as_ref()
+        {
+            h.clone()
+        }
+        else
+        {
+            HeaderMap::new()
+        };
+        let params = if let Some(params) = query_params
+        {
+            params
+        }
+        else
+        {
+            &[]
+        };
+        
+            Ok(cl.headers(headers)
+            .form(params)
+            .json(body)
+            .send()
+            .await?)
+    }
+    pub async fn get_with_params(&self, query_params: Option<&[(&'static str, &'static str)]>) -> Result<reqwest::Response, Error>
+    {
+
+        let url = self.path.as_str();
+        let cl = self.client.get(url);
+        let headers = if let Some(h) = self.headers.as_ref()
+        {
+            h.clone()
+        }
+        else
+        {
+            HeaderMap::new()
+        };
+        let params = if let Some(params) = query_params
+        {
+            params
+        }
+        else
+        {
+            &[]
+        };
+        
+            Ok(cl.headers(headers)
+            .form(params)
+            .send()
+            .await?)
+    }
+}
 
 
 
