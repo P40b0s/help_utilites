@@ -113,10 +113,12 @@ impl Date
             None
         }
     }
-    pub fn new_date_time(day: u32, month: u32, year:u32, hour:u32, minute: u32, second: u32) -> Self
+   
+    pub fn new_time(hour:u32, minute: u32, second: u32) -> Self
     {
+        let value = Local::now();
         let time = NaiveTime::from_hms_opt(hour, minute, second).expect("Ошибка первода даты");
-        let date = NaiveDate::from_ymd_opt(year as i32, month, day).expect("Ошибка первода даты");
+        let date = NaiveDate::from_ymd_opt(value.year(), value.month(), value.day()).expect("Ошибка первода даты из формата DateTime<Local> в формат NaiveDate");
         Self(NaiveDateTime::new(date, time))
     }
     pub fn new_date(day: u32, month: u32, year:u32) -> Self
@@ -227,6 +229,41 @@ impl Date
         }
         None
     }
+      ///Если временные отрезки пересекаются, то вернется true
+      /// `time_from` - в формате h m s
+      pub fn time_in_range<'a>(source: &'a Date, time_from: (u32, u32, u32), time_to: (u32, u32, u32)) -> bool
+      {
+        let source_time = source.0.time();
+        if time_from.0 > time_to.0
+        {
+            let range_from_time_1 = Self::new_time(time_from.0, time_from.1, time_from.2).0.time();
+            let range_to_time_1 = Self::new_time(23, 59, 59).0.time();
+            let range_from_time_2 = Self::new_time(0, 0, 0).0.time();
+            let range_to_time_2 = Self::new_time(time_to.0, time_to.1, time_to.2).0.time();
+            if (source_time > range_from_time_1) && (source_time < range_to_time_1) 
+                || (source_time > range_from_time_2) && (source_time < range_to_time_2)
+            {
+                true
+            }
+            else 
+            {
+                false
+            }
+        }
+        else 
+        {
+            let range_from_time = Self::new_time(time_from.0, time_from.1, time_from.2).0.time();
+            let range_to_time = Self::new_time(time_to.0, time_to.1, time_to.2).0.time();
+            if (source_time > range_from_time) && (source_time < range_to_time)
+            {
+                true
+            }
+            else 
+            {
+                false
+            }
+        }
+      }
     pub fn is_today(&self) -> bool
     {
         let today = Self::now();
@@ -484,6 +521,18 @@ mod test
         ];
         let res = super::Date::in_range((&start_date, &end_date), &arr);
         debug!("{}", res.unwrap());
+    }
+
+    #[test]
+    pub fn test_time_in_range() 
+    {
+        logger::StructLogger::initialize_logger();
+        let start_date = Date::parse("2024-04-30 11:50:00").unwrap();
+        let range = Date::time_in_range(&start_date, (11, 25, 0), (12,20,0));
+        assert_eq!(range, true);
+        let start_date = Date::parse("2024-04-30 00:50:00").unwrap();
+        let range = Date::time_in_range(&start_date, (23, 0, 0), (6,0,0));
+        assert_eq!(range, true);
     }
 
 }
