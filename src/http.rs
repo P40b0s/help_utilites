@@ -5,6 +5,8 @@ use hyper::header::HeaderName;
 pub use hyper::{body::Bytes, header::{HeaderValue, HeaderMap, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONNECTION, CONTENT_TYPE, HOST, USER_AGENT}, Request, Response, StatusCode, Uri};
 pub use hyper_util::rt::TokioIo;
 use reqwest::IntoUrl;
+use reqwest_middleware::ClientBuilder;
+use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpSocket;
 pub use tokio::net::TcpStream;
@@ -240,6 +242,8 @@ pub async fn request_with_retry(req: Request<BoxBody>) -> Result<Bytes, Error>
     };
     logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(),  req.headers());
     logger::info!("tcp address: {}", &host);
+    //let socket = TcpSocket::new_v4()?;
+    //let client_stream = socket.connect(host).await;
     let client_stream = TcpStream::connect(&host).await;
     //let client_stream = TcpStream::connect("95.173.157.133:8000").await;
     if client_stream.is_err()
@@ -289,7 +293,7 @@ pub async fn request_with_retry(req: Request<BoxBody>) -> Result<Bytes, Error>
 
 pub struct HttpClient<U: IntoUrl>
 {
-    client: reqwest::Client,
+    client: reqwest_middleware::ClientWithMiddleware,
     headers: Option<HeaderMap<HeaderValue>>,
     path: U,
 }
@@ -298,9 +302,10 @@ where U: IntoUrl
 {
     pub fn new(url: U) -> Self
     {
+        let mut retry_policy = ExponentialBackoff::builder().retry_bounds(Duration::from_millis(100), Duration::from_millis(300)).build_with_max_retries(10);
         Self
         {
-            client: reqwest::Client::new(),
+            client: ClientBuilder::new(reqwest::Client::new()).with(RetryTransientMiddleware::new_with_policy(retry_policy)).build(),
             headers: None,
             path: url,
         }
@@ -407,6 +412,25 @@ where U: IntoUrl
     }
 }
 
+#[cfg(test)]
+mod tests
+{
+    #[tokio::test]
+    async fn test_cli()
+    {
+        logger::StructLogger::initialize_logger();
+        let cli = super::HttpClient::new("http://95.173.157.133:8000/api/ebpi/redactions/");
+        for i in 0..20
+        {
+            let result = cli.get_with_params(Some(&[("t", "%7B%22hash%22%3A%2266c4df9cc6da662d2ee557c6f2e21cf2f84c3ba3d8bcdfeb43d1925ef3149b24%22%2C%22ttl%22%3A3%7D")])).await;
+            if result.is_err()
+            {
+                logger::error!("{:?}", result);
+            }
+        }
+        
+    }
+}
 
 
 mod encoding

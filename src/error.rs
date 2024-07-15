@@ -20,4 +20,7 @@ pub enum Error
     #[error(transparent)]
     #[cfg(feature="http")]
     ReqwestError(#[from] reqwest::Error),
+    #[error(transparent)]
+    #[cfg(feature="http")]
+    ReqwestMiddlewareError(#[from] reqwest_middleware::Error),
 }
