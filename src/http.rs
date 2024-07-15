@@ -320,7 +320,7 @@ where U: IntoUrl
         self.headers = Some(hmap);
         self
     }
-    pub async fn post_with_params(&self, query_params: Option<&[(&'static str, &'static str)]>) -> Result<Bytes, Error>
+    pub async fn post_with_params(&self, query_params: Option<&[(&str, &str)]>) -> Result<Bytes, Error>
     {
 
         let url = self.path.as_str();
@@ -350,7 +350,7 @@ where U: IntoUrl
         .await?;
     Ok(response)
     }
-    pub async fn post_with_body<S: Serialize>(&self, body: &S, query_params: Option<&[(&'static str, &'static str)]>) -> Result<Bytes, Error>
+    pub async fn post_with_body<S: Serialize>(&self, body: &S, query_params: Option<&[(&str, &str)]>) -> Result<Bytes, Error>
     {
 
         let url = self.path.as_str();
@@ -380,7 +380,7 @@ where U: IntoUrl
         .await?;
     Ok(response)
     }
-    pub async fn get_with_params(&self, query_params: Option<&[(&'static str, &'static str)]>) -> Result<Bytes, Error>
+    pub async fn get_with_params(&self, query_params: Option<&[(&str, &str)]>) -> Result<Bytes, Error>
     {
 
         let url = self.path.as_str();
