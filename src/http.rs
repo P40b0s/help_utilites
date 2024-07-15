@@ -302,7 +302,7 @@ where U: IntoUrl
 {
     pub fn new(url: U) -> Self
     {
-        let mut retry_policy = ExponentialBackoff::builder().retry_bounds(Duration::from_millis(100), Duration::from_millis(300)).build_with_max_retries(10);
+        let retry_policy = ExponentialBackoff::builder().retry_bounds(Duration::from_millis(100), Duration::from_millis(300)).build_with_max_retries(10);
         Self
         {
             client: ClientBuilder::new(reqwest::Client::new()).with(RetryTransientMiddleware::new_with_policy(retry_policy)).build(),
@@ -409,6 +409,27 @@ where U: IntoUrl
         .bytes()
         .await?;
     Ok(response)
+    }
+    ///путь без / в конце, автоматом добавляется /?query_params
+    pub async fn get_with_string_params(&self, query_params: &str) -> Result<Bytes, Error>
+    {
+
+        let url = [self.path.as_str(), "/?", query_params].concat();
+        let cl = self.client.get(url);
+        let headers = if let Some(h) = self.headers.as_ref()
+        {
+            h.clone()
+        }
+        else
+        {
+            HeaderMap::new()
+        };
+        let response = cl.headers(headers)
+        .send()
+        .await?
+        .bytes()
+        .await?;
+        Ok(response)
     }
 }
 
