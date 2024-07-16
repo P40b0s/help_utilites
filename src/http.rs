@@ -376,6 +376,10 @@ impl HyperClient
             timeout_to: to
         }
     }
+    pub fn get_uri(&self) -> &Uri
+    {
+        &self.uri
+    }
     pub fn with_header<S: AsRef<str> + ToString>(mut self, name: HeaderName, value: S) -> Self
     {
         self.headers.insert(name, value.to_string());
