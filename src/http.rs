@@ -394,7 +394,14 @@ impl HyperClient
         {
             uri.push('/');
         }
-        self.uri = [&uri, path].concat().parse().unwrap();
+        if path.starts_with("/")
+        {
+            self.uri = [&uri, &path[1..]].concat().parse().unwrap();
+        }
+        else
+        {
+            self.uri = [&uri, path].concat().parse().unwrap();
+        }
         self
     }
     pub async fn get_with_params<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Result<(StatusCode, Bytes), Error>
