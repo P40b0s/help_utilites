@@ -1,16 +1,18 @@
-use std::{any::TypeId, net::SocketAddr, time::Duration};
+use std::{any::TypeId, net::SocketAddr, result, time::Duration};
 use hashbrown::HashMap;
 pub use http_body_util::{BodyExt, Full};
-use hyper::header::HeaderName;
+use hyper::header::{HeaderName, REFERER, UPGRADE_INSECURE_REQUESTS};
 pub use hyper::{body::Bytes, header::{HeaderValue, HeaderMap, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONNECTION, CONTENT_TYPE, HOST, USER_AGENT}, Request, Response, StatusCode, Uri};
 pub use hyper_util::rt::TokioIo;
+use rand::Rng;
 use reqwest::IntoUrl;
 use reqwest_middleware::ClientBuilder;
 use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpSocket;
 pub use tokio::net::TcpStream;
-use crate::error::Error;
+use tokio_retry::{strategy::jitter, Retry};
+use crate::{error::Error, retry};
 pub use reqwest;
 pub type BoxBody = http_body_util::combinators::BoxBody<Bytes, hyper::Error>;
 
@@ -122,11 +124,65 @@ pub async fn get<O>(uri: Uri) -> Result<O, Error> where for<'de> O: Deserialize<
         return Err(Error::SendError(format!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status())));
     }
 }
+
+
+
+async fn connect(addr: SocketAddr) -> Result<TcpStream, Error>
+{
+    //let client_stream = TcpStream::connect(&addr).await;
+    let client_stream = match tokio::time::timeout(Duration::from_millis(500),  TcpStream::connect(&addr)).await
+    {
+        Ok(connected) => connected,
+        Err(_) => Err(std::io::Error::other("Connection timeout"))
+    };
+    if client_stream.is_err()
+    {
+        logger::error!("Ошибка подключения к {} -> {}", &addr, client_stream.err().unwrap());
+        return Err(Error::SendError(addr.to_string()));
+    }
+    Ok(client_stream.unwrap())
+}
+async fn get_body_timeout(uri: Uri)  -> Result<Bytes, Error>
+{
+    let req =  Request::builder()
+    .method("GET")
+    .uri(&uri)
+    .header(HOST, "pravo.gov.ru")
+    .header(USER_AGENT, "Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0")
+    .header(ACCEPT, "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+    .header(ACCEPT_ENCODING, "gzip, deflate")
+    .header(ACCEPT_LANGUAGE, "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3")
+    //.header(CONNECTION, "keep-alive")
+    .header(REFERER, ["http:://pravo.gov.ru", uri.path()].concat())
+    .header(UPGRADE_INSECURE_REQUESTS, 1)
+    .header("Priority", "u=1")
+    .body(to_body(Bytes::new()))
+    .unwrap();
+    let response = match tokio::time::timeout(Duration::from_millis(100),  get_body(req)).await
+    {
+        Ok(response) => response,
+        Err(_) => Err(Error::SendError("Connection timeout".to_owned()))
+    };
+    response
+}
+async fn get_body_retry(uri: Uri)  -> Result<Bytes, Error>
+{
+    let retry_strategy =  tokio_retry::strategy::ExponentialBackoff::from_millis(50)
+    .map(jitter) 
+    .take(3);
+    retry::retry(5, 100, 400, || get_body_timeout(uri.clone())).await
+    //tokio_retry::Retry::spawn(retry_strategy, || get_body_timeout(uri.clone())).await
+}
 pub async fn get_body(req: Request<BoxBody>) -> Result<Bytes, Error>
 {
     let host = req.uri().authority().unwrap().as_str().replace("localhost", "127.0.0.1");
     logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
     let addr: SocketAddr = host.parse().unwrap();
+    // let retry_strategy =  tokio_retry::strategy::ExponentialBackoff::from_millis(100)
+    // .map(jitter) // add jitter to delays
+    // .take(5);
+   
+    // let client_stream = tokio_retry::Retry::spawn(retry_strategy, || connect(addr)).await;
     let client_stream = TcpStream::connect(&addr).await;
     if client_stream.is_err()
     {
@@ -289,6 +345,184 @@ pub async fn request_with_retry(req: Request<BoxBody>) -> Result<Bytes, Error>
         }
     }
 }
+#[derive(Debug, Clone)]
+pub struct HyperClient
+{
+    uri: Uri,
+    headers: hashbrown::HashMap<HeaderName, String>,
+    timeout_from: u64,
+    timeout_to: u64
+}
+
+impl HyperClient
+{
+    pub fn new(uri: Uri) -> Self
+    {
+
+        Self
+        { 
+            uri, 
+            headers: hashbrown::HashMap::new(),
+            timeout_from: 200,
+            timeout_to: 500
+        }
+    }
+    ///выберется рандомное время из данного рэнджа
+    pub fn new_with_timeout(uri: Uri, from: u64, to: u64) -> Self
+    {
+
+        Self
+        { 
+            uri, 
+            headers: hashbrown::HashMap::new(),
+            timeout_from: from,
+            timeout_to: to
+        }
+    }
+    pub fn with_header<S: AsRef<str> + ToString>(mut self, name: HeaderName, value: S) -> Self
+    {
+        self.headers.insert(name, value.to_string());
+        self
+    }
+    pub fn with_headers<S: AsRef<str> + ToString>(mut self, headers: hashbrown::HashMap<HeaderName, S>) -> Self
+    {
+        self.headers = headers.into_iter().map(|m| (m.0, m.1.to_string())).collect::<hashbrown::HashMap<HeaderName, String>>();
+        self
+    }
+    pub async fn get_with_params<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Result<(StatusCode, Bytes), Error>
+    {
+        self.get_body_retry(params, "GET", None::<bool>).await
+    }
+    pub async fn get_with_body<B: Serialize + Clone>(&self, body: B) -> Result<(StatusCode, Bytes), Error>
+    {
+        let v: Vec<(&str, &str)> = Vec::new();
+        self.get_body_retry(&v, "GET", Some(body)).await
+    }
+    pub async fn post_with_params<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Result<(StatusCode, Bytes), Error>
+    {
+        self.get_body_retry(params, "POST", None::<bool>).await
+    }
+    pub async fn post_with_body<B: Serialize + Clone>(&self, body: B) -> Result<(StatusCode, Bytes), Error>
+    {
+        let v: Vec<(&str, &str)> = Vec::new();
+        self.get_body_retry(&v, "POST", Some(body)).await
+    }
+    pub async fn patch_with_params<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Result<(StatusCode, Bytes), Error>
+    {
+        self.get_body_retry(params, "PATCH", None::<bool>).await
+    }
+    pub async fn patch_with_body<B: Serialize + Clone>(&self, body: B) -> Result<(StatusCode, Bytes), Error>
+    {
+        let v: Vec<(&str, &str)> = Vec::new();
+        self.get_body_retry(&v, "PATCH", Some(body)).await
+    }
+    fn apply_params_to_uri<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Uri
+    {
+        let params_len = params.len();
+        if params_len == 0
+        {
+            self.uri.clone()
+        }
+        else
+        {
+            let mut uri = self.uri.to_string();
+            if uri.ends_with("/")
+            {
+                uri.remove(uri.len()-1);
+            }
+            uri.push('?');
+            
+            for (i, (k, v)) in params.into_iter().enumerate()
+            {
+                let key_value = [k.as_ref(), "=", encoding::encode(v.as_ref()).as_ref()].concat();
+                uri.push_str(&key_value);
+                if i < params_len -1
+                {
+                    uri.push('&');
+                }
+            }
+            uri.parse().unwrap()
+        }
+    }
+
+    async fn get_body_timeout<S: AsRef<str> + ToString>(&self, params: &[(S, S)], method: &str, body: Option<Bytes>)  -> Result<(StatusCode, Bytes), Error>
+    {
+        let mut req =  Request::builder()
+        .method(method)
+        .uri(self.apply_params_to_uri(params));
+        let headers = req.headers_mut().unwrap();
+        for (k, v) in &self.headers
+        {
+            headers.insert(k, v.parse().unwrap());
+        }
+        let body = if let Some(b) = body
+        {
+            to_body(b.clone().into())
+        }
+        else
+        {
+            to_body(Bytes::new())
+        };
+        let req = req
+        .body(body)
+        .unwrap();
+        let response = match tokio::time::timeout(Self::rnd_duration(self.timeout_from, self.timeout_to),  Self::get_body(req)).await
+        {
+            Ok(response) => response,
+            Err(_) => Err(Error::SendError("Connection timeout".to_owned()))
+        };
+        response
+    }
+
+    fn rnd_duration(timeout_from: u64, timeout_to: u64) -> Duration
+    {
+        Duration::from_millis(rand::thread_rng().gen_range(timeout_from..timeout_to))
+    }
+    async fn get_body_retry<S: AsRef<str> + ToString, B: Serialize + Clone>(&self, params: &[(S, S)], method: &str, body: Option<B>) -> Result<(StatusCode, Bytes), Error>
+    {
+        let body: Option<Bytes> = body.and_then(|b| Some(Bytes::from(serde_json::to_string(&b).unwrap())));
+        retry::retry(6, self.timeout_from, self.timeout_to, || self.get_body_timeout(params, method, body.clone())).await
+    }
+    async fn get_body(req: Request<BoxBody>) -> Result<(StatusCode, Bytes), Error>
+    {
+        let host = req.uri().authority().unwrap().as_str().replace("localhost", "127.0.0.1");
+        logger::debug!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
+        let addr: SocketAddr = host.parse().unwrap();
+        let client_stream = TcpStream::connect(&addr).await;
+        if client_stream.is_err()
+        {
+            logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
+            return Err(Error::SendError(addr.to_string()));
+        }
+        let io = TokioIo::new(client_stream.unwrap());
+        let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
+        tokio::task::spawn(async move 
+            {
+                if let Err(err) = conn.await 
+                {
+                    logger::error!("Ошибка подключения: {:?}", err);
+                }
+            });
+        let send = sender.send_request(req).await?;
+        let status = send.status();
+        let body = send.collect().await?.to_bytes();
+        logger::debug!("От {} получен ответ со статусом -> {}", &addr, &status);
+        Ok((status, body))
+
+        // if send.status() == StatusCode::OK
+        // {
+        //     let body = send.collect().await?.to_bytes();
+        //     Ok(body)
+        // }
+        // else
+        // {
+        //     logger::error!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status());
+        //     return Err(Error::SendError(format!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status())));
+        // }
+    }
+}
+
+
 
 
 pub struct HttpClient<U: IntoUrl>
@@ -305,7 +539,7 @@ where U: IntoUrl
         let retry_policy = ExponentialBackoff::builder().retry_bounds(Duration::from_millis(100), Duration::from_millis(300)).build_with_max_retries(10);
         Self
         {
-            client: ClientBuilder::new(reqwest::Client::new()).with(RetryTransientMiddleware::new_with_policy(retry_policy)).build(),
+            client: ClientBuilder::new(reqwest::Client::builder().timeout(Duration::from_secs(3)).build().unwrap()).with(RetryTransientMiddleware::new_with_policy(retry_policy)).build(),
             headers: None,
             path: url,
         }
@@ -436,20 +670,101 @@ where U: IntoUrl
 #[cfg(test)]
 mod tests
 {
+    use hyper::{body::Bytes, header::{HeaderName, HeaderValue, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, HOST, REFERER, UPGRADE_INSECURE_REQUESTS, USER_AGENT}, HeaderMap, Request, Uri};
+
+    use super::{to_body, BoxBody};
+
     #[tokio::test]
     async fn test_cli()
     {
         logger::StructLogger::initialize_logger();
-        let cli = super::HttpClient::new("http://95.173.157.133:8000/api/ebpi/redactions/");
-        for i in 0..20
+        let cli = super::HttpClient::new("http://95.173.157.133:8000/api/ebpi/redactions");
+        for i in 0..10
         {
             let result = cli.get_with_params(Some(&[("t", "%7B%22hash%22%3A%2266c4df9cc6da662d2ee557c6f2e21cf2f84c3ba3d8bcdfeb43d1925ef3149b24%22%2C%22ttl%22%3A3%7D")])).await;
             if result.is_err()
             {
                 logger::error!("{:?}", result);
             }
+            else 
+            {
+                logger::info!("{:?}", result.as_ref().unwrap());
+            }
         }
         
+    }
+    #[tokio::test]
+    async fn test_hyper_cli()
+    {
+        logger::StructLogger::initialize_logger();
+        let uri: Uri = "http://95.173.157.133:8000/api/ebpi/redactions?t=%7B%22hash%22%3A%2266c4df9cc6da662d2ee557c6f2e21cf2f84c3ba3d8bcdfeb43d1925ef3149b24%22%2C%22ttl%22%3A3%7D".parse().unwrap();
+      
+        for i in 0..10
+        {
+            //let r = empty_get_request(uri.clone());
+            let result = super::get_body_retry(uri.clone()).await;
+            if result.is_err()
+            {
+                logger::error!("{}->{:?}", i, result);
+            }
+            else {
+                logger::info!("{:?}", result.as_ref().unwrap());
+            }
+        }
+        
+    }
+
+    #[tokio::test]
+    async fn test_hyper_cli_new()
+    {
+        logger::StructLogger::initialize_logger();
+        let uri: Uri = "http://95.173.157.133:8000/api/ebpi/redactions/".parse().unwrap();
+        let hyper_client = super::HyperClient::new(uri)
+        .with_headers(headers());
+        for i in 0..10
+        {
+            //let r = empty_get_request(uri.clone());
+            let result = hyper_client.get_with_params(&[("t", "%7B%22hash%22%3A%2266c4df9cc6da662d2ee557c6f2e21cf2f84c3ba3d8bcdfeb43d1925ef3149b24%22%2C%22ttl%22%3A3%7D")]).await;
+            if result.is_err()
+            {
+                logger::error!("{}->{:?}", i, result);
+            }
+            else {
+                logger::info!("{:?}", result.as_ref().unwrap());
+            }
+        }
+    }
+    fn headers() -> hashbrown::HashMap<HeaderName, String>
+    {
+        let mut h= hashbrown::HashMap::new();
+        h.insert(HOST, "pravo.gov.ru".to_owned());
+        h.insert(USER_AGENT, "Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0".to_owned());
+        h.insert(ACCEPT, "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8".to_owned());
+        h.insert(ACCEPT_ENCODING, "gzip, deflate".to_owned());
+        h.insert(ACCEPT_LANGUAGE, "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3".to_owned());
+        h.insert(REFERER, "http:://pravo.gov.ru".to_owned());
+        h.insert(UPGRADE_INSECURE_REQUESTS, "1".to_owned());
+        h
+
+    }
+
+    fn empty_get_request(uri: Uri) -> Request<BoxBody>
+    {
+        let host = [uri.host().unwrap(), uri.port().unwrap().as_str()].concat();
+        Request::builder()
+        .method("GET")
+        .uri(&uri)
+        .header(HOST, "pravo.gov.ru")
+        .header(USER_AGENT, "Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0")
+        .header(ACCEPT, "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8")
+        .header(ACCEPT_ENCODING, "gzip, deflate")
+        .header(ACCEPT_LANGUAGE, "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3")
+        //.header(CONNECTION, "keep-alive")
+        .header(REFERER, ["http:://pravo.gov.ru", uri.path()].concat())
+        .header(UPGRADE_INSECURE_REQUESTS, 1)
+        .header("Priority", "u=1")
+        .body(to_body(Bytes::new()))
+        .unwrap()
     }
 }
 

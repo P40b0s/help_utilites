@@ -1,10 +1,12 @@
 use std::future::Future;
 use logger::warn;
+use rand::{thread_rng, Rng};
+use rand::seq::SliceRandom;
 
 ///Повторное выполнение функции  
 /// __attempts__ количество повторов  (0 бесконечный повтор)
-/// __delay__ задержка между повторами в секундах  
-pub async fn retry<F, Fu, V, E>(mut attempts: u8, delay: u64, f: F) -> Result<V, E>
+/// __delay__ задержка между повторами в миллисекундах  
+pub async fn retry<F, Fu, V, E>(mut attempts: u8, delay_from: u64, delay_to: u64, f: F) -> Result<V, E>
 where F: Fn() -> Fu,
       Fu: Future<Output=Result<V, E>> 
 {
@@ -25,9 +27,9 @@ where F: Fn() -> Fu,
                 {
                     warn!("Повторная попытка выполнения retry осталось ∞ попыток");
                 }
-                tokio::time::sleep(tokio::time::Duration::from_secs(delay)).await;
+                let delay = rand::thread_rng().gen_range(delay_from..delay_to);
+                tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
             }
         };
     }
 }
-
