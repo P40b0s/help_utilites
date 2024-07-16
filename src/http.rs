@@ -348,7 +348,8 @@ pub struct HyperClient
     uri: Uri,
     headers: hashbrown::HashMap<HeaderName, String>,
     timeout_from: u64,
-    timeout_to: u64
+    timeout_to: u64,
+    retry_count: u8
 }
 
 impl HyperClient
@@ -361,11 +362,12 @@ impl HyperClient
             uri, 
             headers: hashbrown::HashMap::new(),
             timeout_from: 200,
-            timeout_to: 500
+            timeout_to: 500,
+            retry_count: 7
         }
     }
     ///выберется рандомное время из данного рэнджа
-    pub fn new_with_timeout(uri: Uri, from: u64, to: u64) -> Self
+    pub fn new_with_timeout(uri: Uri, from: u64, to: u64, retry_count: u8) -> Self
     {
 
         Self
@@ -373,7 +375,8 @@ impl HyperClient
             uri, 
             headers: hashbrown::HashMap::new(),
             timeout_from: from,
-            timeout_to: to
+            timeout_to: to,
+            retry_count
         }
     }
     pub fn get_uri(&self) -> &Uri
@@ -499,7 +502,7 @@ impl HyperClient
     async fn get_body_retry<S: AsRef<str> + ToString, B: Serialize + Clone>(&self, params: &[(S, S)], method: &str, body: Option<B>) -> Result<(StatusCode, Bytes), Error>
     {
         let body: Option<Bytes> = body.and_then(|b| Some(Bytes::from(serde_json::to_string(&b).unwrap())));
-        retry::retry(6, self.timeout_from, self.timeout_to, || self.get_body_timeout(params, method, body.clone())).await
+        retry::retry(self.retry_count, self.timeout_from, self.timeout_to, || self.get_body_timeout(params, method, body.clone())).await
     }
     async fn get_body(req: Request<BoxBody>) -> Result<(StatusCode, Bytes), Error>
     {
