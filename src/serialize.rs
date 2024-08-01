@@ -80,4 +80,19 @@ where
 }
 
 
+#[cfg(feature="dates")]
+pub fn deserialize_option_date<'de, D>(deserializer: D) -> Result<Option<Date>, D::Error>
+where
+    D: serde::de::Deserializer<'de>,
+{
+    let opt = Option::<String>::deserialize(deserializer)?;
+    match opt.as_deref() 
+    {
+        None | Some("null") | Some("NULL") => Ok(None),
+        Some(s) => Ok(Date::parse(s))
+    }
+    
+}
+
+
 
