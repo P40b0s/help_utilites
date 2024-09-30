@@ -414,6 +414,11 @@ impl HyperClient
     {
         self.get_body_retry(params, "GET", None::<bool>).await
     }
+    pub async fn get(&self) -> Result<(StatusCode, Bytes), Error>
+    {
+        let params: Vec<(String, String)> = Vec::new();
+        self.get_body_retry(&params, "GET", None::<bool>).await
+    }
     pub async fn get_with_body<B: Serialize + Clone>(&self, body: B) -> Result<(StatusCode, Bytes), Error>
     {
         let v: Vec<(&str, &str)> = Vec::new();
