@@ -442,6 +442,19 @@ impl HyperClient
         let v: Vec<(&str, &str)> = Vec::new();
         self.get_body_retry(&v, "PATCH", Some(body)).await
     }
+    pub async fn put_with_params<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Result<(StatusCode, Bytes), Error>
+    {
+        self.get_body_retry(params, "PUT", None::<bool>).await
+    }
+    pub async fn put_with_body<B: Serialize + Clone>(&self, body: B) -> Result<(StatusCode, Bytes), Error>
+    {
+        let v: Vec<(&str, &str)> = Vec::new();
+        self.get_body_retry(&v, "PUT", Some(body)).await
+    }
+    pub async fn delete<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Result<(StatusCode, Bytes), Error>
+    {
+        self.get_body_retry(params, "DELETE", None::<bool>).await
+    }
     fn apply_params_to_uri<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Uri
     {
         let params_len = params.len();
