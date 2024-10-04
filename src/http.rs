@@ -455,6 +455,11 @@ impl HyperClient
     {
         self.get_body_retry(params, "DELETE", None::<bool>).await
     }
+    pub async fn delete_with_body<S: AsRef<str> + ToString, B: Serialize + Clone>(&self, body: B) -> Result<(StatusCode, Bytes), Error>
+    {
+        let v: Vec<(&str, &str)> = Vec::new();
+        self.get_body_retry(&v, "DELETE", Some(body)).await
+    }
     fn apply_params_to_uri<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Uri
     {
         let params_len = params.len();
