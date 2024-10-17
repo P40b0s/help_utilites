@@ -1,5 +1,5 @@
 
-mod io;
+pub mod io;
 pub mod error;
 mod exclude;
 pub use io::read_file_to_binary;
