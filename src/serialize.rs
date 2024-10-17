@@ -1,5 +1,6 @@
-use std::{fmt, fs::OpenOptions, io::{BufWriter, Write}, path::PathBuf, str::FromStr};
-use logger::error;
+use std::{fmt, fs::OpenOptions, io::{BufWriter, Write}, path::{Path, PathBuf}, str::FromStr};
+use logger::{error, warn};
+use serde::de::DeserializeOwned;
 pub use serde::{de, Deserialize, Deserializer, Serialize};
 pub use serde_json;
 
@@ -39,11 +40,70 @@ pub fn serialize_to_file<T>(json : T, file_name : &str, directory: Option<&str>)
     }
     else
     {
-        let e = format!("Ошибка десериализации файла {} -> {}", write.err().unwrap(), pretty.err().unwrap());
+        let e = format!("Ошибка загрузки файла {} -> {}", write.err().unwrap(), pretty.err().unwrap());
         error!("{}", &e);
         return Err(e);
     }
 }
+
+
+
+#[derive(Clone)]
+pub enum Serializer
+{
+    Json,
+    Toml
+}
+///Сериализация объекта в файл с помощью указанного сериализатора
+pub fn serialize<T, P: AsRef<Path>>(json : T, file_path : P, path_as_absolute: bool, serializer: Serializer) -> Result<(), crate::error::Error> where T : Clone + Serialize 
+{
+    let path = if !path_as_absolute
+    {
+        Path::new(&std::env::current_dir().unwrap()).join(file_path)
+    }
+    else
+    {
+        file_path.as_ref().to_path_buf()
+    };
+    let write = OpenOptions::new()
+    .write(true)
+    .create(true)
+    .truncate(true)
+    .open(&path)?;
+    let ser = match serializer
+    {
+        Serializer::Toml => toml::to_string(&json)?,
+        Serializer::Json => serde_json::to_string_pretty(&json)?
+    };
+    let mut f = BufWriter::new(write);
+    let _write = f.write_all(ser.as_bytes());
+    return Ok(());
+   
+}
+
+
+/// десериализация файла в нужный объект с помощью указанного десериализатора
+pub fn deserialize<'de, T, P: AsRef<Path>>(file_path: P, path_as_absolute: bool, serializer: Serializer) -> Result<T, crate::error::Error> where T : Clone + DeserializeOwned
+{
+    let path = if !path_as_absolute
+    {
+        Path::new(&std::env::current_dir().unwrap()).join(file_path)
+    }
+    else
+    {
+        file_path.as_ref().to_path_buf()
+    };
+    let file = std::fs::read_to_string(&path)?;
+    let result: T = match serializer
+    {
+        Serializer::Toml => toml::from_str(&file)?,
+        Serializer::Json => serde_json::from_str(&file)?
+    };
+    Ok(result)
+}
+
+
+
 
 pub fn empty_string_as_none<'de, D, T>(de: D) -> Result<Option<T>, D::Error>
 where

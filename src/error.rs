@@ -4,7 +4,13 @@ use thiserror::Error;
 pub enum Error 
 {
     #[error(transparent)]
+    IoError(#[from] std::io::Error),
+    #[error(transparent)]
     DeserializeError(#[from] serde_json::Error),
+    #[error(transparent)]
+    TomlDeserializeError(#[from] toml::de::Error),
+    #[error(transparent)]
+    TomlSerializeError(#[from] toml::ser::Error),
     #[error(transparent)]
     #[cfg(feature="http")]
     HyperError(#[from] hyper::Error),
