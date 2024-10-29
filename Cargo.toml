@@ -13,14 +13,14 @@ http = [
     "dep:hyper-util",
     "dep:http-body-util",
     "dep:tower-http",
-    "dep:tokio",
-    "dep:tokio-test",
+    "dep:tokio"
     #"dep:reqwest",
     #"dep:reqwest-retry",
     #"dep:reqwest-middleware",
     #"dep:tokio-retry"
 ]
 retry = ["dep:tokio"]
+encoding = ["dep:encoding", "dep:tokio"]
 # flexbuffers = ["dep:flexbuffers"]
 # binary = ["dep:bitcode"]
 # json = ["dep:serde_json"]
@@ -29,9 +29,9 @@ retry = ["dep:tokio"]
 
 [dependencies]
 chrono= {version = "0.4.38", optional = true}
-thiserror="1.0.64"
-serde_json = "1.0.128"
-serde = { version = "1.0.210", features = ["derive"] }
+thiserror="1.0.65"
+serde_json = "1.0.132"
+serde = { version = "1.0.214", features = ["derive"] }
 toml = {version = "0.8.19", features = ['parse']}
 logger = {git = "https://github.com/P40b0s/logger.git", branch = "main"}
 rand="0.8.5"
@@ -41,12 +41,17 @@ base64ct = {version = "1.6.0", features = ["alloc"], optional = true}
 hashbrown = {version ="0.15" , features = ['serde'], optional = true}
 #http
 hyper= {version="1.5.0", optional = true}
-hyper-util = {version = "0.1.9", optional = true, features = ["full"]}
+hyper-util = {version = "0.1.10", optional = true, features = ["full"]}
 http-body-util= {version = "0.1.2", optional = true}
 tower-http = {version = "0.6.1", optional = true, features = ["cors", "fs", "trace"]}
-tokio = { version = "1.40.0",optional = true, features = ["macros", "rt", "rt-multi-thread", "test-util"] }
-tokio-test= {version ="0.4.4", optional = true}
+tokio = { version = "1.41.0",optional = true, features = ["macros", "rt", "rt-multi-thread", "test-util"] }
 url = {version="2.5.2", optional = true}
+#encoding
+encoding = { version = "0.2.33", optional = true}
+
+[dev-dependencies]
+
+tokio-test= {version ="0.4.4"}
 # reqwest = {version="0.12.5", optional = true, features=["json"]}
 # reqwest-retry = {version="0.6.0", optional = true}
 # reqwest-middleware = {version="0.3.2", optional = true}

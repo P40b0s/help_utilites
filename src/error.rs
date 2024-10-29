@@ -23,6 +23,8 @@ pub enum Error
     StationServiceError(String),
     #[error("Ошибка подключения к сервису `{0}` при отправке сообщения")]
     SendError(String),
+    #[error("Ошибка открытия фала `{0}` -> {1}")]
+    FileOpenError(String, String),
     // #[error(transparent)]
     // #[cfg(feature="http")]
     // ReqwestError(#[from] reqwest::Error),

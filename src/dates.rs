@@ -449,7 +449,7 @@ mod test
     #[test]
     pub fn date_output() 
     {
-        logger::StructLogger::initialize_logger();
+        let _ = logger::StructLogger::new_default();
         let date = Date::parse("26-10-2022T13:23:52").unwrap();
         debug!("Парсинг 26-10-2022T13:23:52 - {} ", date.format(DateFormat::DotDate));
         let date2 = Date::parse("26 октября 2020").unwrap();
@@ -482,7 +482,7 @@ mod test
     #[test]
     pub fn serialize_date() 
     {
-        logger::StructLogger::initialize_logger();
+        let _ = logger::StructLogger::new_default();
         let start_date = Date::parse("2024-04-24 08:50:00").unwrap();
         let d = DP {days: 6.6654, date: start_date};
         let s = serde_json::to_string(&d).unwrap();
@@ -495,7 +495,7 @@ mod test
     #[test]
     pub fn round() 
     {
-        logger::StructLogger::initialize_logger();
+        let _ = logger::StructLogger::new_default();
         let start_date = Date::parse("2024-04-24 08:50:00").unwrap();
         let end_date = Date::parse("2024-04-30 08:59:00").unwrap();
         let dd = start_date.diff(end_date);
@@ -504,7 +504,7 @@ mod test
     #[test]
     pub fn test_in_range() 
     {
-        logger::StructLogger::initialize_logger();
+        let _ = logger::StructLogger::new_default();
         let start_date = Date::parse("2024-04-30 11:50:00").unwrap();
         let end_date = Date::parse("2024-04-30 11:59:00").unwrap();
 
@@ -526,7 +526,7 @@ mod test
     #[test]
     pub fn test_time_in_range() 
     {
-        logger::StructLogger::initialize_logger();
+        let _ = logger::StructLogger::new_default();
         let start_date = Date::parse("2024-04-30 11:50:00").unwrap();
         let range = Date::time_in_range(&start_date, (11, 25, 0), (12,20,0));
         assert_eq!(range, true);

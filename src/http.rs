@@ -740,7 +740,7 @@ mod tests
     #[tokio::test]
     async fn test_hyper_cli()
     {
-        logger::StructLogger::initialize_logger();
+        let _ = logger::StructLogger::new_default();
         let uri: Uri = "http://95.173.157.133:8000/api/ebpi/redactions?t=%7B%22hash%22%3A%2266c4df9cc6da662d2ee557c6f2e21cf2f84c3ba3d8bcdfeb43d1925ef3149b24%22%2C%22ttl%22%3A3%7D".parse().unwrap();
       
         for i in 0..10
@@ -761,7 +761,7 @@ mod tests
     #[tokio::test]
     async fn test_hyper_cli_new()
     {
-        logger::StructLogger::initialize_logger();
+        let _ = logger::StructLogger::new_default();
         let uri: Uri = "http://95.173.157.133:8000/api/ebpi/redactions/".parse().unwrap();
         let hyper_client = super::HyperClient::new(uri)
         .with_headers(headers());

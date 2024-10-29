@@ -89,7 +89,7 @@ mod test
     #[test]
     pub fn date_output() 
     {
-        logger::StructLogger::initialize_logger();
+        let _ = logger::StructLogger::new_default();
         let s = &["1 ываываыва ыаваыва ыва ыва23", "45ыва ыва ыва ываываыва6", "78ацуацуаца ывацуац уацуац вацуа цуацуа цуа 9"];
         let tt = super::Hasher::hash_from_strings(s);
         debug!("{}", &tt); 
