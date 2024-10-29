@@ -41,8 +41,6 @@ pub enum FileEncoding
 }
 #[cfg(feature="encoding")]
 ///Если не указано явно, сначала пробует открыть файл в utf-8 если возникнет ошибка то пробует перевести кодировку в windows-1251
-/// и открыть, если в открытом файле не находит букву а... за это вот стыдно, но перебирать несколько киррилических символов неохота
-/// да и слишком такое на удачу... то ставит метку что есть ошибка в определении кодировки
 pub async fn open_file<P: AsRef<Path> + ToString>(path: P, encoding: Option<FileEncoding>) -> Result<String, Error>
 {
     use encoding::{all::WINDOWS_1251, DecoderTrap, Encoding};
@@ -100,6 +98,7 @@ mod tests
     use logger::info;
 
     #[tokio::test]
+    #[cfg(feature="encoding")]
     async fn test_open_win1251_file()
     {
         let _ = logger::StructLogger::new_default();
@@ -108,6 +107,7 @@ mod tests
         info!("{}", file.unwrap());
     }
     #[tokio::test]
+    #[cfg(feature="encoding")]
     async fn test_open_utf8_file()
     {
         let _ = logger::StructLogger::new_default();
