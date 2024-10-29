@@ -41,7 +41,7 @@ pub enum FileEncoding
 }
 #[cfg(feature="encoding")]
 ///Если не указано явно, сначала пробует открыть файл в utf-8 если возникнет ошибка то пробует перевести кодировку в windows-1251
-pub async fn open_file<P: AsRef<Path> + ToString>(path: P, encoding: Option<FileEncoding>) -> Result<String, Error>
+pub async fn open_file_with_encoding<P: AsRef<Path> + ToString>(path: P, encoding: Option<FileEncoding>) -> Result<String, Error>
 {
     use encoding::{all::WINDOWS_1251, DecoderTrap, Encoding};
     use tokio::io::AsyncReadExt;
