@@ -2,7 +2,6 @@
 pub mod io;
 pub mod error;
 mod exclude;
-pub use io::read_file_to_binary;
 mod serialize;
 pub use serialize::*;
 pub use exclude::exclude;
