@@ -38,25 +38,16 @@ pub fn get_dirs<P: AsRef<Path>>(path: P) -> Option<Vec<String>>
     }
     return Some(dirs);
 }
-pub async fn get_dirs_async<P: AsRef<Path>>(path: P) -> Option<Vec<String>>
+pub async fn get_dirs_async<P: AsRef<Path>>(path: P) -> Result<Vec<String>, crate::error::Error>
 {
-    let paths = tokio::fs::read_dir(path).await;
-    if paths.is_err()
-    {
-        error!("😳 Ошибка чтения директории -> {}", paths.err().unwrap());
-        return None;
-    }
+    let mut paths = tokio::fs::read_dir(path).await?;
     let mut dirs = vec![];
-    let mut paths = paths.unwrap();
-    while let Ok(d) = paths.next_entry().await 
+    while let Some(entry) = paths.next_entry().await?
     {
-        if let Some(d) = d
-        {
-            let dir = d.file_name().to_str().unwrap().to_owned();
-            dirs.push(dir);
-        }
+        let dir = entry.file_name().to_str().unwrap().to_owned();
+        dirs.push(dir);
     }
-    return Some(dirs);
+    Ok(dirs)
 }
 
 
