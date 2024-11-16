@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt::{Display, Write}};
 
-use chrono::{DateTime, Datelike, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, Timelike};
+use chrono::{DateTime, Datelike, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, TimeZone, Timelike, Utc};
 use logger::{error, backtrace};
 use serde::{Deserialize, Serialize};
 pub const FORMAT_SERIALIZE_DATE_TIME: &'static str = "%Y-%m-%dT%H:%M:%S";
@@ -149,6 +149,14 @@ impl Date
     pub fn as_naive_datetime(&self) -> NaiveDateTime
     {
         self.0.clone()
+    }
+    pub fn to_timezone(&mut self, zone: i32)
+    {
+        let tz = FixedOffset::east_opt(zone * 3600).unwrap();
+        let date_with_timezone = self.0.and_local_timezone(tz);
+        let new_date = date_with_timezone.single().unwrap().naive_local();
+        self.0 = new_date;
+        
     }
     fn locale_months_to_num(date: &str) -> String
     {
