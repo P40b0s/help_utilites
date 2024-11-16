@@ -150,14 +150,7 @@ impl Date
     {
         self.0.clone()
     }
-    pub fn to_timezone(&mut self, zone: i32)
-    {
-        let tz = FixedOffset::east_opt(zone * 3600).unwrap();
-        let date_with_timezone = self.0.and_local_timezone(tz);
-        let new_date = date_with_timezone.single().unwrap().naive_local();
-        self.0 = new_date;
-        
-    }
+
     fn locale_months_to_num(date: &str) -> String
     {
         date
@@ -549,6 +542,14 @@ mod test
         let start_date = Date::parse("2024-04-30 00:50:00").unwrap();
         let range = Date::time_in_range(&start_date, (23, 0, 0), (6,0,0));
         assert_eq!(range, true);
+    }
+    #[test]
+    pub fn test_tz() 
+    {
+        let _ = logger::StructLogger::new_default();
+        let date = Date::parse("2024-04-30 11:50:00").unwrap();
+        let date = date.add_minutes(3 * 60);
+        debug!("{:?}", &date);
     }
 
 }
