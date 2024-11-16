@@ -62,6 +62,14 @@ impl<'a> Serialize for Date
     }
 }
 
+impl From<NaiveDateTime> for Date
+{
+    fn from(value: NaiveDateTime) -> Self 
+    {
+        Self(value)
+    }
+}
+
 impl Date
 {
     /// Поддерживаемые форматы дат:  
