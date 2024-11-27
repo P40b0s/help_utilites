@@ -205,6 +205,7 @@ impl Date
             DateFormat::OnlyDate => self.0.format(FORMAT_DASH_DATE).to_string(),
             DateFormat::DotDate => self.0.format(FORMAT_DOT_DATE).to_string(),
             DateFormat::JoinDate => self.0.format(FORMAT_JOIN_DATE).to_string(),
+            DateFormat::Time => self.0.format(FORMAT_TIME).to_string(),
             DateFormat::FullDate => 
             {
                 let day = self.0.day();
@@ -422,7 +423,9 @@ pub enum DateFormat
     /// 25 октября 20122
     FullDate,
     /// 20240618
-    JoinDate
+    JoinDate,
+    ///12:00:00
+    Time
 }
 
 
