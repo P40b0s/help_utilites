@@ -1,6 +1,6 @@
 use std::{borrow::Cow, fmt::{Display, Write}};
 
-use chrono::{DateTime, Datelike, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, TimeZone, Timelike, Utc};
+use chrono::{DateTime, Datelike, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, TimeZone, Timelike, Utc, Weekday};
 use logger::{error, backtrace};
 use serde::{Deserialize, Serialize};
 pub const FORMAT_SERIALIZE_DATE_TIME: &'static str = "%Y-%m-%dT%H:%M:%S";
@@ -11,6 +11,8 @@ pub const FORMAT_DOT_DATE: &'static str = "%d.%m.%Y";
 pub const FORMAT_DASH_DATE: &'static str = "%d-%m-%Y";
 pub const FORMAT_FULL_DATE: &'static str = "%d %m %Y";
 pub const FORMAT_JOIN_DATE: &'static str = "%Y%m%d";
+///date today + parsed time
+pub const FORMAT_TIME: &'static str = "%H:%M:%S";
 
 #[derive(Debug, Clone)]
 pub struct IncludeDates<'a>
@@ -115,9 +117,15 @@ impl Date
             let dt =  dt.and_hms_opt(0, 0, 0).unwrap();
             Some(Date(dt))
         }
+        else if let Ok(time) = NaiveTime::parse_from_str(&date, FORMAT_TIME)
+        {
+            let value = Local::now();
+            let date = NaiveDate::from_ymd_opt(value.year(), value.month(), value.day()).expect("Ошибка первода даты из формата DateTime<Local> в формат NaiveDate");
+            Some(Self(NaiveDateTime::new(date, time)))
+        }
         else 
         {
-            error!("Ошибка входного формата данных - {}. Поддерживаются форматы: {}, {}, {}, {}, {}", &date, FORMAT_JOIN_DATE, FORMAT_DOT_DATE, FORMAT_SERIALIZE_DATE_TIME, FORMAT_SERIALIZE_DATE_TIME_REVERSE, FORMAT_SERIALIZE_DATE_TIME_WS);
+            error!("Ошибка входного формата данных - {}. Поддерживаются форматы: {}, {}, {}, {}, {}, {}", &date, FORMAT_JOIN_DATE, FORMAT_DOT_DATE, FORMAT_SERIALIZE_DATE_TIME, FORMAT_SERIALIZE_DATE_TIME_REVERSE, FORMAT_SERIALIZE_DATE_TIME_WS, FORMAT_TIME);
             None
         }
     }
@@ -238,10 +246,10 @@ impl Date
         }
         None
     }
-      ///Если временные отрезки пересекаются, то вернется true
-      /// `time_from` - в формате h m s
-      pub fn time_in_range<'a>(source: &'a Date, time_from: (u32, u32, u32), time_to: (u32, u32, u32)) -> bool
-      {
+    ///Если временные отрезки пересекаются, то вернется true
+    /// `time_from` - в формате h m s
+    pub fn time_in_range<'a>(source: &'a Date, time_from: (u32, u32, u32), time_to: (u32, u32, u32)) -> bool
+    {
         let source_time = source.0.time();
         if time_from.0 > time_to.0
         {
@@ -272,11 +280,25 @@ impl Date
                 false
             }
         }
-      }
+    }
+    pub fn time_in_hour<'a>(&self, in_hour: u32) -> bool
+    {
+        let source_time = self.0.time();
+        source_time.hour() == in_hour
+    }
     pub fn is_today(&self) -> bool
     {
         let today = Self::now();
         if today.0.date() == self.0.date()
+        {
+            return true
+        }
+        false
+    }
+    pub fn is_weekend(&self) -> bool
+    {
+        let today = Self::now();
+        if today.0.weekday() == Weekday::Sat || today.0.weekday() == Weekday::Sun
         {
             return true
         }
