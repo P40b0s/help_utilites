@@ -369,6 +369,13 @@ impl Date
         let to_remove: Vec<String> = BTreeSet::from_iter(to_remove).into_iter().map(|m| m.format(compare.clone())).collect();
         items.retain(|e| !to_remove.contains(&e.format(compare.clone())));
     }
+    pub fn union(items: &mut Vec<Date>, added_dates: Vec<Date>, compare: DateFormat)
+    {
+        //del all exists dates in source and add all added_dates
+        let formated_dates: Vec<String> = BTreeSet::from_iter(&added_dates).into_iter().map(|m| m.format(compare.clone())).collect();
+        items.retain(|e| !formated_dates.contains(&e.format(compare.clone())));
+        items.extend(added_dates);
+    }
     
     fn add_time_to_end_day(self) -> Self
     {
