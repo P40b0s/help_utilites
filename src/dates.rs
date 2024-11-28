@@ -1,4 +1,4 @@
-use std::{borrow::Cow, fmt::{Display, Write}};
+use std::{borrow::Cow, collections::BTreeSet, fmt::{Display, Write}};
 
 use chrono::{DateTime, Datelike, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, TimeZone, Timelike, Utc, Weekday};
 use logger::{error, backtrace};
@@ -32,7 +32,7 @@ impl<'a> Display for IncludeDates<'a>
     }
 }
 #[derive(Debug, Clone)]
-/// Объект хранящий дату время, пока без оффсета
+/// Datetime object for parse and format date
 pub struct Date(NaiveDateTime);
 impl<'de> Deserialize<'de> for Date 
 {
@@ -54,6 +54,48 @@ impl<'de> Deserialize<'de> for Date
     }
 }
 
+impl PartialEq for Date
+{
+    fn eq(&self, other: &Self) -> bool 
+    {
+        self.date_is_equalis(other)
+    }
+}
+impl PartialOrd for Date
+{
+    fn gt(&self, other: &Self) -> bool 
+    {
+        self.as_naive_datetime() > other.as_naive_datetime()
+    }
+    fn ge(&self, other: &Self) -> bool 
+    {
+        self.date_is_equalis(other) || self.gt(other)
+    }
+    fn lt(&self, other: &Self) -> bool 
+    {
+        self.as_naive_datetime() < other.as_naive_datetime()
+    }
+    fn le(&self, other: &Self) -> bool 
+    {
+        self.date_is_equalis(other) || self.lt(other)
+    }
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> 
+    {
+        Some(self.as_naive_datetime().cmp(&other.as_naive_datetime()))
+    }
+}
+impl Eq for Date{}
+
+
+impl Ord for Date
+{
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering 
+    {
+        self.as_naive_datetime().cmp(&other.as_naive_datetime())
+    }
+}
+
+
 impl<'a> Serialize for Date 
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
@@ -63,6 +105,7 @@ impl<'a> Serialize for Date
         serializer.serialize_str(&self.format(DateFormat::Serialize))
     }
 }
+
 
 impl From<NaiveDateTime> for Date
 {
@@ -313,7 +356,20 @@ impl Date
         }
         false
     }
-
+    pub fn time_is_equalis(&self, other: &Date) -> bool
+    {
+        if other.0.time() == self.0.time()
+        {
+            return true
+        }
+        false
+    }
+    pub fn exclude(items: &mut Vec<Date>, to_remove: Vec<Date>, compare: DateFormat)
+    {
+        let to_remove: Vec<String> = BTreeSet::from_iter(to_remove).into_iter().map(|m| m.format(compare.clone())).collect();
+        items.retain(|e| !to_remove.contains(&e.format(compare.clone())));
+    }
+    
     fn add_time_to_end_day(self) -> Self
     {
         if self.0.hour() == 0 && self.0.minute() == 0 && self.0.second() == 0
@@ -409,7 +465,7 @@ impl Display for Date
         f.write_str(&self.format(DateFormat::Serialize))
     }
 }
-
+#[derive(Clone)]
 pub enum DateFormat
 {
     /// 2022-10-26T13:23:52  
@@ -474,6 +530,8 @@ mod test
     use serde::{Deserialize, Serialize};
     
     
+    use crate::exclude;
+
     use super::
     {
         Date,
@@ -575,6 +633,15 @@ mod test
         let date = Date::parse("2024-04-30 11:50:00").unwrap();
         let date = date.add_minutes(3 * 60);
         debug!("{:?}", &date);
+    }
+    #[test]
+    pub fn test_exclude() 
+    {
+        let _ = logger::StructLogger::new_default();
+        let exclude_date = vec![Date::parse("2024-04-30 11:22:00").unwrap()];
+        let mut dates = vec![Date::parse("2024-04-30 11:50:00").unwrap(), Date::parse("2024-05-30 11:59:00").unwrap()];
+        Date::exclude(&mut dates, exclude_date, DateFormat::DotDate);
+        debug!("{:?}", &dates);
     }
 
 }

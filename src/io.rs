@@ -52,8 +52,6 @@ pub async fn get_dirs_async<P: AsRef<Path>>(path: P) -> Result<Vec<String>, crat
 
 
 
-
-
 #[cfg(feature="encoding")]
 pub enum FileEncoding
 {
