@@ -6,7 +6,7 @@ use rand::{thread_rng, Rng};
 use rand::seq::SliceRandom;
 
 ///Повторное выполнение функции  
-/// __attempts__ количество повторов  (0 бесконечный повтор)
+/// __attempts__ количество повторов  (0 бесконечный повтор)  
 /// __delay__ задержка между повторами в миллисекундах  
 pub async fn retry<F, Fu, V, E>(mut attempts: u8, delay_from: u64, delay_to: u64, f: F) -> Result<V, E>
 where F: Fn() -> Fu,
@@ -36,8 +36,8 @@ where F: Fn() -> Fu,
     }
 }
 
-
-pub async fn retry_sync<F, Fu, V, E>(mut attempts: u8, delay_from: u64, delay_to: u64, f: F) -> Result<V, E>
+///retry operation with `attempts` and random range `delay_from` in ms - `delay_to` in ms
+pub fn retry_sync<F, V, E>(mut attempts: u8, delay_from: u64, delay_to: u64, f: F) -> Result<V, E>
 where F: Fn() -> Result<V, E>
 {
     loop 
