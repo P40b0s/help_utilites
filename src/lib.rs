@@ -18,7 +18,7 @@ pub use hashing::*;
 #[cfg(feature="retry")]
 mod retry;
 #[cfg(feature="retry")]
-pub use retry::retry;
+pub use retry::{retry, retry_sync};
 
 #[cfg(feature="http")]
 pub mod http;
