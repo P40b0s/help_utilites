@@ -1,4 +1,4 @@
-use std::{any::TypeId, net::SocketAddr, result, time::Duration};
+use std::{any::TypeId, net::{IpAddr, Ipv4Addr, SocketAddr}, result, time::Duration};
 use hashbrown::HashMap;
 pub use http_body_util::{BodyExt, Full};
 pub use hyper::{body::Bytes, header::*, Request, Response, StatusCode, Uri};
@@ -531,7 +531,16 @@ impl HyperClient
     {
         let host = req.uri().authority().unwrap().as_str().replace("localhost", "127.0.0.1");
         logger::debug!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
-        let addr: SocketAddr = host.parse().unwrap();
+        //let addr: SocketAddr = host.parse().unwrap();
+        let https = req.uri().scheme().and_then(|s| Some(s.as_str() == "https"));
+        let addr: SocketAddr = if https.is_some() && *https.as_ref().unwrap() == true
+        {
+            SocketAddr::new(IpAddr::V4(host.parse::<Ipv4Addr>().unwrap()), 443)
+        }
+        else
+        {
+            host.parse().unwrap()
+        };
         let client_stream = TcpStream::connect(&addr).await;
         if client_stream.is_err()
         {
