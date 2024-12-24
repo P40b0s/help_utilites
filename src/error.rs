@@ -17,6 +17,9 @@ pub enum Error
     #[error(transparent)]
     #[cfg(feature="http")]
     HyperHttpError(#[from] hyper::http::Error),
+    #[error(transparent)]
+    #[cfg(feature="http")]
+    HttpClientLegacyError(#[from] hyper_util::client::legacy::Error),
     #[error("По данным параметрам заявки `{0}`")]
     NotFreeWorkers(String),
     #[error("Ошибка сервиса станций `{0}`")]

@@ -1,8 +1,9 @@
 use std::{any::TypeId, net::{IpAddr, Ipv4Addr, SocketAddr}, result, time::Duration};
 use hashbrown::HashMap;
+use http_body_util::Empty;
 pub use http_body_util::{BodyExt, Full};
 pub use hyper::{body::Bytes, header::*, Request, Response, StatusCode, Uri};
-pub use hyper_util::rt::TokioIo;
+use hyper_util::{client::legacy::Client, rt::{TokioExecutor, TokioIo}};
 use rand::Rng;
 // use reqwest::IntoUrl;
 // use reqwest_middleware::ClientBuilder;
@@ -10,6 +11,8 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use tokio::net::TcpSocket;
 pub use tokio::net::TcpStream;
+use rustls::RootCertStore;
+use hyper_rustls::ConfigBuilderExt;
 //use tokio_retry::{ Retry};
 use crate::{error::Error, retry};
 //pub use reqwest;
@@ -361,8 +364,8 @@ impl HyperClient
         { 
             uri, 
             headers: hashbrown::HashMap::new(),
-            timeout_from: 200,
-            timeout_to: 500,
+            timeout_from: 5000,
+            timeout_to: 30000,
             retry_count: 7
         }
     }
@@ -510,7 +513,7 @@ impl HyperClient
         let req = req
         .body(body)
         .unwrap();
-        let response = match tokio::time::timeout(Self::rnd_duration(self.timeout_from, self.timeout_to),  Self::get_body(req)).await
+        let response = match tokio::time::timeout(Self::rnd_duration(self.timeout_from, self.timeout_to),  Self::get_body_tls(req)).await
         {
             Ok(response) => response,
             Err(_) => Err(Error::SendError("Connection timeout".to_owned()))
@@ -548,6 +551,7 @@ impl HyperClient
             return Err(Error::SendError(addr.to_string()));
         }
         let io = TokioIo::new(client_stream.unwrap());
+   
         let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
         tokio::task::spawn(async move 
             {
@@ -572,6 +576,38 @@ impl HyperClient
         //     logger::error!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status());
         //     return Err(Error::SendError(format!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status())));
         // }
+    }
+
+    async fn get_body_tls(req: Request<BoxBody>) -> Result<(StatusCode, Bytes), Error>
+    {
+        //let host = req.uri().authority().unwrap().as_str().replace("localhost", "127.0.0.1");
+        let tls = rustls::ClientConfig::builder()
+        .with_native_roots()?
+        .with_no_client_auth();
+        let https = hyper_rustls::HttpsConnectorBuilder::new()
+        .with_tls_config(tls)
+        .https_or_http()
+        .enable_http1()
+        .build();
+        let client: Client<_, Empty<Bytes>> = Client::builder(TokioExecutor::new()).build(https);
+        let fut = async move 
+        {
+            logger::debug!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
+            let res = client
+                .get(req.uri().clone())
+                .await?;
+
+            let status = res.status();
+            logger::debug!("От {} получен ответ со статусом -> {}", req.uri(), &status);
+            let body = res
+                .into_body()
+                .collect()
+                .await?
+                .to_bytes();
+            Ok((status, body))
+        };
+    
+        fut.await
     }
 }
 
@@ -786,6 +822,40 @@ mod tests
                 logger::info!("{:?}", result.as_ref().unwrap());
             }
         }
+    }
+
+    #[tokio::test]
+    async fn test_hyper_cli_tls()
+    {
+        let _ = logger::StructLogger::new_default();
+        let uri: Uri = "https://fake-json-api.mock.beeceptor.com/companies".parse().unwrap();
+        let hyper_client = super::HyperClient::new(uri)
+        .with_headers(headers2());
+        for i in 0..10
+        {
+            //let r = empty_get_request(uri.clone());
+            let result = hyper_client.get().await;
+            if result.is_err()
+            {
+                logger::error!("{}->{:?}", i, result);
+            }
+            else {
+                logger::info!("{:?}", result.as_ref().unwrap());
+            }
+        }
+    }
+    fn headers2() -> Vec<(HeaderName, String)>
+    {
+        let mut h= Vec::new();
+        h.push((HOST, "fake-json-api.mock.beeceptor.com".to_owned()));
+        h.push((USER_AGENT, "Mozilla/5.0 (X11; Linux x86_64; rv:127.0) Gecko/20100101 Firefox/127.0".to_owned()));
+        h.push((ACCEPT, "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8".to_owned()));
+        h.push((ACCEPT_ENCODING, "gzip, deflate".to_owned()));
+        h.push((ACCEPT_LANGUAGE, "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3".to_owned()));
+        //h.push((REFERER, "http:://pravo.gov.ru".to_owned()));
+        //h.push((UPGRADE_INSECURE_REQUESTS, "1".to_owned()));
+        h
+
     }
     fn headers() -> Vec<(HeaderName, String)>
     {
