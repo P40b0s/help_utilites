@@ -1,133 +1,17 @@
-use std::{any::TypeId, net::{IpAddr, Ipv4Addr, SocketAddr}, result, time::Duration};
+use std::{any::TypeId, cell::LazyCell, net::{IpAddr, Ipv4Addr, SocketAddr}, result, sync::Arc, time::Duration};
 use hashbrown::HashMap;
 use http_body_util::Empty;
 pub use http_body_util::{BodyExt, Full};
 pub use hyper::{body::Bytes, header::*, Request, Response, StatusCode, Uri};
 use hyper_util::{client::legacy::Client, rt::{TokioExecutor, TokioIo}};
 use rand::Rng;
-// use reqwest::IntoUrl;
-// use reqwest_middleware::ClientBuilder;
-// use reqwest_retry::{policies::ExponentialBackoff, RetryTransientMiddleware};
-use serde::{Deserialize, Serialize};
-use tokio::net::TcpSocket;
+use serde::Serialize;
+use tokio::{net::TcpSocket, sync::Mutex};
 pub use tokio::net::TcpStream;
-use rustls::RootCertStore;
+//use rustls::RootCertStore;
 use hyper_rustls::ConfigBuilderExt;
-//use tokio_retry::{ Retry};
 use crate::{error::Error, retry};
-//pub use reqwest;
 pub type BoxBody = http_body_util::combinators::BoxBody<Bytes, hyper::Error>;
-
-
-// async fn post<I: Serialize, O>(uri: Uri, obj: &I) -> Result<O, Error> where for<'de> O: Deserialize<'de>
-// {
-//     let host = uri.authority().unwrap().as_str().replace("localhost", "127.0.0.1");
-//     let req = Request::builder()
-//     .method("POST")
-//     .uri(&uri)
-//     .header(HOST, "localhost")
-//     .header(CONTENT_TYPE, "application/json")
-//     .body(to_body(Bytes::from(serde_json::to_string(&obj).unwrap())))
-//     .unwrap();
-//     logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
-//     let addr: SocketAddr = host.parse().unwrap();
-//     let client_stream = TcpStream::connect(&addr).await;
-//     if client_stream.is_err()
-//     {
-//         logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
-//         return Err(Error::SendError(addr.to_string()));
-//     }
-//     let io = TokioIo::new(client_stream.unwrap());
-//     let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
-//     tokio::task::spawn(async move 
-//         {
-//             if let Err(err) = conn.await 
-//             {
-//                 logger::error!("Ошибка подключения: {:?}", err);
-//             }
-//         });
-//     let send = sender.send_request(req).await?;
-//     let body = send.collect().await?.to_bytes();
-//     let response: O = serde_json::from_slice(&body)?;
-
-//     Ok(response)
-// }
-
-// async fn post_with_params<O>(uri: Uri) -> Result<O, Error> where for<'de> O: Deserialize<'de>
-// {
-//     let host = uri.authority().unwrap().as_str().replace("localhost", "127.0.0.1");
-//     let req = Request::builder()
-//     .method("POST")
-//     .uri(&uri)
-//     .header(HOST, "localhost")
-//     .body(to_body(Bytes::new()))
-//     .unwrap();
-//     logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
-//     let addr: SocketAddr = host.parse().unwrap();
-//     let client_stream = TcpStream::connect(&addr).await;
-//     if client_stream.is_err()
-//     {
-//         logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
-//         return Err(Error::SendError(addr.to_string()));
-//     }
-//     let io = TokioIo::new(client_stream.unwrap());
-//     let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
-//     tokio::task::spawn(async move 
-//         {
-//             if let Err(err) = conn.await 
-//             {
-//                 logger::error!("Ошибка подключения: {:?}", err);
-//             }
-//         });
-//     let send = sender.send_request(req).await?;
-//     let body = send.collect().await?.to_bytes();
-//     let response: O = serde_json::from_slice(&body)?;
-
-//     Ok(response)
-// }
-
-// async fn get<O>(uri: Uri) -> Result<O, Error> where for<'de> O: Deserialize<'de>
-// {
-//     let host = uri.authority().unwrap().as_str().replace("localhost", "127.0.0.1");
-//     let req = Request::builder()
-//     .method("GET")
-//     .uri(&uri)
-//     .header(HOST, "localhost")
-//     .body(to_body(Bytes::new()))
-//     .unwrap();
-//     logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
-//     let addr: SocketAddr = host.parse().unwrap();
-//     let client_stream = TcpStream::connect(&addr).await;
-//     if client_stream.is_err()
-//     {
-//         logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
-//         return Err(Error::SendError(addr.to_string()));
-//     }
-//     let io = TokioIo::new(client_stream.unwrap());
-//     let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
-//     tokio::task::spawn(async move 
-//         {
-//             if let Err(err) = conn.await 
-//             {
-//                 logger::error!("Ошибка подключения: {:?}", err);
-//             }
-//         });
-//     let send = sender.send_request(req).await?;
-//     if send.status() == StatusCode::OK
-//     {
-//         let body = send.collect().await?.to_bytes();
-//         //logger::debug!("{}", String::from_utf8_lossy(&body));
-//         let response: O = serde_json::from_slice(&body)?;
-//         Ok(response)
-//     }
-//     else
-//     {
-//         logger::error!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status());
-//         return Err(Error::SendError(format!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status())));
-//     }
-// }
-
-
 
 async fn connect(addr: SocketAddr) -> Result<TcpStream, Error>
 {
@@ -275,75 +159,6 @@ pub fn unauthorized_response() -> Response<BoxBody>
     .body(to_body(Bytes::from_static(b"Unauthorized")))
     .unwrap()
 }
-
-/// Запрос формируем сами, так быстрее будет, в него же включаем передаваемое значение если нужно
-// async fn request_with_retry(req: Request<BoxBody>) -> Result<Bytes, Error>
-// {
-//     let host = if let Some(h) = req.uri().authority()
-//     {
-       
-//         // if let Some(p) = req.uri().port()
-//         // {
-//         //     [h.as_str(), p.as_str()].concat()
-//         // }
-//         // else
-//         // {
-//             h.as_str().to_owned()
-//         // }
-//     }
-//     else
-//     {
-//         return Err(Error::SendError(format!("В запросе {} не найден адрес сервера", req.uri().to_string())));
-//     };
-//     logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(),  req.headers());
-//     logger::info!("tcp address: {}", &host);
-//     //let socket = TcpSocket::new_v4()?;
-//     //let client_stream = socket.connect(host).await;
-//     let client_stream = TcpStream::connect(&host).await;
-//     //let client_stream = TcpStream::connect("95.173.157.133:8000").await;
-//     if client_stream.is_err()
-//     {
-//         logger::error!("Ошибка подключения к сервису {} -> {}", host.clone(), client_stream.err().unwrap());
-//         return Err(Error::SendError(host.clone()));
-//     }
-//     let io = TokioIo::new(client_stream.unwrap());
-    
-//     let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
-//     tokio::task::spawn(async move 
-//     {
-//         if let Err(err) = conn.await 
-//         {
-//             logger::error!("Ошибка подключения: {:?}", err);
-//         }
-//     });
-//     let send = sender.send_request(req);
-//     match tokio::time::timeout(Duration::from_secs(2), send).await 
-//     {
-//         Ok(result) => match result 
-//         {
-//             Ok(r) => 
-//             if r.status() == StatusCode::OK
-//             {
-//                 let body = r.collect().await?.to_bytes();
-//                 //if TypeId::of::<R>() == TypeId::of::<Bytes>
-//                 //let response: R = serde_json::from_slice(&body)?;
-//                 return Ok(body);
-//             }
-//             else
-//             {
-//                 logger::error!("Ошибка получения инфомации от сервиса {} -> {}", &host, r.status());
-//                 return Err(Error::SendError(format!("Ошибка получения инфомации от сервиса {} -> {}", &host, r.status())));
-//             },
-//             Err(e) => return Err(Error::HyperError(e))
-//         },
-//         Err(_) =>
-//         {
-//             let e = format!("Нет ответа от сервера {} > 2 секунд", &host);
-//             logger::warn!("{}", &e);
-//             return Err(Error::SendError(e));
-//         }
-//     }
-// }
 
 #[derive(Debug, Clone)]
 pub struct HyperClient
@@ -502,6 +317,12 @@ impl HyperClient
         {
             headers.insert(k, v.parse().unwrap());
         }
+        let guard = COOK.lock().await;
+        if let Some(c) = guard.get(self.get_uri().host().unwrap())
+        {
+            headers.insert(COOKIE, c.parse().unwrap());
+        }
+        drop(guard);
         let body = if let Some(b) = body
         {
             to_body(b.clone().into())
@@ -510,7 +331,7 @@ impl HyperClient
         {
             to_body(Bytes::new())
         };
-        let req = req
+        let req: Request<http_body_util::combinators::BoxBody<Bytes, hyper::Error>> = req
         .body(body)
         .unwrap();
         let response = match tokio::time::timeout(Self::rnd_duration(self.timeout_from, self.timeout_to),  Self::get_body_tls(req)).await
@@ -592,14 +413,74 @@ impl HyperClient
         let client: Client<_, Empty<Bytes>> = Client::builder(TokioExecutor::new()).build(https);
         let fut = async move 
         {
+            let mut req = req;
             logger::debug!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
-            let res = client
-                .get(req.uri().clone())
-                .await?;
-
-            let status = res.status();
-            logger::debug!("От {} получен ответ со статусом -> {}", req.uri(), &status);
-            let body = res
+            let mut response = client
+            .get(req.uri().clone())
+            .await?;
+            if let Some(c) = response.headers().get("set-cookie")
+            {
+                let mut guard = COOK.lock().await;
+                //были установлены для данного хоста но обновились
+                if let Some(old) = guard.insert(req.uri().host().unwrap().to_owned(), c.to_str().unwrap().to_owned())
+                {
+                    //если отличаются от предыдущих, обновляем и делаем повторный запрос
+                    if c.to_str().unwrap() != &old
+                    {
+                        req.headers_mut().insert(COOKIE, c.clone());
+                        logger::debug!("Поменялись куки, деаем поторный запрос на {}, headers: {:?}", req.uri(), req.headers());
+                        response = client
+                            .get(req.uri().clone())
+                            .await?;
+                    }
+                  
+                }
+                //установлены впервые
+                else 
+                {
+                    req.headers_mut().insert(COOKIE, c.clone());
+                    logger::debug!("Установлены новые куки, деаем поторный запрос на {}, headers: {:?}", req.uri(), req.headers());
+                    response = client
+                        .get(req.uri().clone())
+                        .await?;
+                }
+            }
+            if let Some(c) = response.headers().get("location")
+            {
+                logger::debug!("От сервера получен ответ с перенаправлением запроса на {}", c.to_str().unwrap());
+                if let Ok(new_uri) = c.to_str().unwrap().parse::<Uri>()
+                {
+                    *req.uri_mut() = new_uri;
+                    response = client
+                    .get(req.uri().clone())
+                    .await?;
+                }
+            }
+            // let res = if let Some(c) = res.headers().get("set-cookie")
+            // {
+            //     let mut req = req;
+            //     req.headers_mut().append(COOKIE, c.clone());
+            //     logger::debug!("От сервера получены cookie {}, отправка повторного запроса на {}, headers: {:?}", c.to_str().unwrap(), req.uri(), req.headers());
+            //     let c_res = client
+            //     .get(req.uri().clone())
+            //     .await?;
+            //     // let status = res.status();
+            //     // let body = res
+            //     //     .into_body()
+            //     //     .collect()
+            //     //     .await?
+            //     //     .to_bytes();
+            //     // Ok((status, body))
+            //     c_res
+            // }
+            // else 
+            // {
+            //     res    
+            // };
+            // res
+            logger::debug!("От сервера получен ответ со статусом {}, headers: {:?}", response.status(), response.headers());
+            let status = response.status();
+            let body = response
                 .into_body()
                 .collect()
                 .await?
@@ -611,155 +492,13 @@ impl HyperClient
     }
 }
 
+static COOK: std::sync::LazyLock<Arc<Mutex<HashMap<String, String>>>> = std::sync::LazyLock::new(|| Arc::new(Mutex::new(HashMap::new())));
 
-
-
-// struct HttpClient<U: IntoUrl>
-// {
-//     client: reqwest_middleware::ClientWithMiddleware,
-//     headers: Option<HeaderMap<HeaderValue>>,
-//     path: U,
-// }
-// impl<U> HttpClient<U>
-// where U: IntoUrl
-// {
-//     pub fn new(url: U) -> Self
-//     {
-//         let retry_policy = ExponentialBackoff::builder().retry_bounds(Duration::from_millis(100), Duration::from_millis(300)).build_with_max_retries(10);
-//         Self
-//         {
-//             client: ClientBuilder::new(reqwest::Client::builder().timeout(Duration::from_secs(3)).build().unwrap()).with(RetryTransientMiddleware::new_with_policy(retry_policy)).build(),
-//             headers: None,
-//             path: url,
-//         }
-//     }
-//     pub fn with_headers(mut self, headers: &[(HeaderName, &'static str)]) -> Self
-//     {
-//         let mut hmap: HeaderMap<HeaderValue> = HeaderMap::new();
-//         for h in headers
-//         {
-//             hmap.insert(h.0.clone(), h.1.parse().unwrap());
-//         }
-//         self.headers = Some(hmap);
-//         self
-//     }
-//     pub async fn post_with_params(&self, query_params: Option<&[(&str, &str)]>) -> Result<Bytes, Error>
-//     {
-
-//         let url = self.path.as_str();
-//         let cl = self.client.post(url);
-//         let headers = if let Some(h) = self.headers.as_ref()
-//         {
-//             h.clone()
-//         }
-//         else
-//         {
-//             HeaderMap::new()
-//         };
-//         let params = if let Some(params) = query_params
-//         {
-//             params
-//         }
-//         else
-//         {
-//             &[]
-//         };
-        
-//         let response = cl.headers(headers)
-//         .form(params)
-//         .send()
-//         .await?
-//         .bytes()
-//         .await?;
-//     Ok(response)
-//     }
-//     pub async fn post_with_body<S: Serialize>(&self, body: &S, query_params: Option<&[(&str, &str)]>) -> Result<Bytes, Error>
-//     {
-
-//         let url = self.path.as_str();
-//         let cl = self.client.post(url);
-//         let headers = if let Some(h) = self.headers.as_ref()
-//         {
-//             h.clone()
-//         }
-//         else
-//         {
-//             HeaderMap::new()
-//         };
-//         let params = if let Some(params) = query_params
-//         {
-//             params
-//         }
-//         else
-//         {
-//             &[]
-//         };
-        
-//         let response = cl.headers(headers)
-//         .form(params)
-//         .send()
-//         .await?
-//         .bytes()
-//         .await?;
-//     Ok(response)
-//     }
-//     pub async fn get_with_params(&self, query_params: Option<&[(&str, &str)]>) -> Result<Bytes, Error>
-//     {
-
-//         let url = self.path.as_str();
-//         let cl = self.client.get(url);
-//         let headers = if let Some(h) = self.headers.as_ref()
-//         {
-//             h.clone()
-//         }
-//         else
-//         {
-//             HeaderMap::new()
-//         };
-//         let params = if let Some(params) = query_params
-//         {
-//             params
-//         }
-//         else
-//         {
-//             &[]
-//         };
-        
-//         let response = cl.headers(headers)
-//         .form(params)
-//         .send()
-//         .await?
-//         .bytes()
-//         .await?;
-//     Ok(response)
-//     }
-//     ///путь без / в конце, автоматом добавляется /?query_params
-//     pub async fn get_with_string_params(&self, query_params: &str) -> Result<Bytes, Error>
-//     {
-
-//         let url = [self.path.as_str(), "/?", query_params].concat();
-//         let cl = self.client.get(url);
-//         let headers = if let Some(h) = self.headers.as_ref()
-//         {
-//             h.clone()
-//         }
-//         else
-//         {
-//             HeaderMap::new()
-//         };
-//         let response = cl.headers(headers)
-//         .send()
-//         .await?
-//         .bytes()
-//         .await?;
-//         Ok(response)
-//     }
-// }
 
 #[cfg(test)]
 mod tests
 {
-    use hyper::{body::Bytes, header::{HeaderName, HeaderValue, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, HOST, REFERER, UPGRADE_INSECURE_REQUESTS, USER_AGENT}, HeaderMap, Request, Uri};
+    use hyper::{body::Bytes, header::{HeaderName, HeaderValue, ACCEPT, ACCEPT_ENCODING, ACCEPT_LANGUAGE, CONTENT_TYPE, HOST, ORIGIN, REFERER, UPGRADE_INSECURE_REQUESTS, USER_AGENT}, HeaderMap, Request, Uri};
 
     use super::{to_body, BoxBody};
 
@@ -843,6 +582,28 @@ mod tests
                 logger::info!("{:?}", result.as_ref().unwrap());
             }
         }
+    }
+    #[tokio::test]
+    async fn test_hyper_cli_tls_retirn301()
+    {
+        let _ = logger::StructLogger::new_default();
+                      //https://egov-buryatia.ru/npa_template?date_doc_from=2024-01-01&date_doc_to=2024-12-31&TIP_DOC=%D0%97%D0%B0%D0%BA%D0%BE%D0%BD&ORGAN_VLASTI=%D0%9D%D0%B0%D1%80%D0%BE%D0%B4%D0%BD%D1%8B%D0%B9+%D0%A5%D1%83%D1%80%D0%B0%D0%BB&PAGEN_1=1
+        let uri: Uri = "https://egov-buryatia.ru/npa_template?date_doc_from=2024-01-01&date_doc_to=2024-12-31&TIP_DOC=%D0%97%D0%B0%D0%BA%D0%BE%D0%BD&ORGAN_VLASTI=%D0%9D%D0%B0%D1%80%D0%BE%D0%B4%D0%BD%D1%8B%D0%B9+%D0%A5%D1%83%D1%80%D0%B0%D0%BB&PAGEN_1=1".parse().unwrap();
+        let client = super::HyperClient::new(uri).with_headers(vec![
+            (ACCEPT_ENCODING, "gzip, deflate, br, zstd"),
+            (ACCEPT, "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"),
+            (HOST, "egov-buryatia.ru"),
+            (USER_AGENT, "Mozilla/5.0 (X11; Linux x86_64; rv:134.0) Gecko/20100101 Firefox/134.0"),
+            (HeaderName::from_static("sec-fetch-dest"), "document"),
+            (HeaderName::from_static("sec-fetch-mode"), "navigate"),
+            (UPGRADE_INSECURE_REQUESTS, "1"),
+            (ACCEPT_LANGUAGE, "ru-RU,ru;q=0.8,en-US;q=0.5,en;q=0.3"),
+            (CONTENT_TYPE, "application/octet-stream"),
+            (ORIGIN, "https://egov-buryatia.ru"),
+            (HeaderName::from_static("x-requested-with"), "XMLHttpRequest")
+        ]);
+        let res = client.get().await;
+        logger::info!("{:?}", res);
     }
     fn headers2() -> Vec<(HeaderName, String)>
     {
