@@ -351,53 +351,42 @@ impl HyperClient
         let body: Option<Bytes> = body.and_then(|b| Some(Bytes::from(serde_json::to_string(&b).unwrap())));
         retry::retry(self.retry_count, self.timeout_from, self.timeout_to, || self.get_body_timeout(params, method, body.clone())).await
     }
-    async fn get_body(req: Request<BoxBody>) -> Result<(StatusCode, Bytes), Error>
-    {
-        let host = req.uri().authority().unwrap().as_str().replace("localhost", "127.0.0.1");
-        logger::debug!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
-        //let addr: SocketAddr = host.parse().unwrap();
-        let https = req.uri().scheme().and_then(|s| Some(s.as_str() == "https"));
-        let addr: SocketAddr = if https.is_some() && *https.as_ref().unwrap() == true
-        {
-            SocketAddr::new(IpAddr::V4(host.parse::<Ipv4Addr>().unwrap()), 443)
-        }
-        else
-        {
-            host.parse().unwrap()
-        };
-        let client_stream = TcpStream::connect(&addr).await;
-        if client_stream.is_err()
-        {
-            logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
-            return Err(Error::SendError(addr.to_string()));
-        }
-        let io = TokioIo::new(client_stream.unwrap());
+    // async fn get_body(req: Request<BoxBody>) -> Result<(StatusCode, Bytes), Error>
+    // {
+    //     let host = req.uri().authority().unwrap().as_str().replace("localhost", "127.0.0.1");
+    //     logger::debug!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
+    //     //let addr: SocketAddr = host.parse().unwrap();
+    //     let https = req.uri().scheme().and_then(|s| Some(s.as_str() == "https"));
+    //     let addr: SocketAddr = if https.is_some() && *https.as_ref().unwrap() == true
+    //     {
+    //         SocketAddr::new(IpAddr::V4(host.parse::<Ipv4Addr>().unwrap()), 443)
+    //     }
+    //     else
+    //     {
+    //         host.parse().unwrap()
+    //     };
+    //     let client_stream = TcpStream::connect(&addr).await;
+    //     if client_stream.is_err()
+    //     {
+    //         logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
+    //         return Err(Error::SendError(addr.to_string()));
+    //     }
+    //     let io = TokioIo::new(client_stream.unwrap());
    
-        let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
-        tokio::task::spawn(async move 
-            {
-                if let Err(err) = conn.await 
-                {
-                    logger::error!("Ошибка подключения: {:?}", err);
-                }
-            });
-        let send = sender.send_request(req).await?;
-        let status = send.status();
-        let body = send.collect().await?.to_bytes();
-        logger::debug!("От {} получен ответ со статусом -> {}", &addr, &status);
-        Ok((status, body))
-
-        // if send.status() == StatusCode::OK
-        // {
-        //     let body = send.collect().await?.to_bytes();
-        //     Ok(body)
-        // }
-        // else
-        // {
-        //     logger::error!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status());
-        //     return Err(Error::SendError(format!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status())));
-        // }
-    }
+    //     let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
+    //     tokio::task::spawn(async move 
+    //         {
+    //             if let Err(err) = conn.await 
+    //             {
+    //                 logger::error!("Ошибка подключения: {:?}", err);
+    //             }
+    //         });
+    //     let send = sender.send_request(req).await?;
+    //     let status = send.status();
+    //     let body = send.collect().await?.to_bytes();
+    //     logger::debug!("От {} получен ответ со статусом -> {}", &addr, &status);
+    //     Ok((status, body))
+    // }
 
     async fn get_body_tls(req: Request<BoxBody>) -> Result<(StatusCode, Bytes), Error>
     {
@@ -429,9 +418,6 @@ impl HyperClient
                     {
                         req.headers_mut().insert(COOKIE, c.clone());
                         logger::debug!("Поменялись куки, деаем поторный запрос на {}, headers: {:?}", req.uri(), req.headers());
-                        response = client
-                            .get(req.uri().clone())
-                            .await?;
                     }
                   
                 }
@@ -440,11 +426,13 @@ impl HyperClient
                 {
                     req.headers_mut().insert(COOKIE, c.clone());
                     logger::debug!("Установлены новые куки, деаем поторный запрос на {}, headers: {:?}", req.uri(), req.headers());
-                    response = client
-                        .get(req.uri().clone())
-                        .await?;
+                    
                 }
+                response = client
+                    .get(req.uri().clone())
+                    .await?;
             }
+            //перенаправление запроса при статусе 301
             if let Some(c) = response.headers().get("location")
             {
                 logger::debug!("От сервера получен ответ с перенаправлением запроса на {}", c.to_str().unwrap());
@@ -456,28 +444,6 @@ impl HyperClient
                     .await?;
                 }
             }
-            // let res = if let Some(c) = res.headers().get("set-cookie")
-            // {
-            //     let mut req = req;
-            //     req.headers_mut().append(COOKIE, c.clone());
-            //     logger::debug!("От сервера получены cookie {}, отправка повторного запроса на {}, headers: {:?}", c.to_str().unwrap(), req.uri(), req.headers());
-            //     let c_res = client
-            //     .get(req.uri().clone())
-            //     .await?;
-            //     // let status = res.status();
-            //     // let body = res
-            //     //     .into_body()
-            //     //     .collect()
-            //     //     .await?
-            //     //     .to_bytes();
-            //     // Ok((status, body))
-            //     c_res
-            // }
-            // else 
-            // {
-            //     res    
-            // };
-            // res
             logger::debug!("От сервера получен ответ со статусом {}, headers: {:?}", response.status(), response.headers());
             let status = response.status();
             let body = response
