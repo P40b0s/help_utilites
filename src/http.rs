@@ -174,6 +174,7 @@ impl HyperClient
 {
     pub fn new(uri: Uri) -> Self
     {
+        let _ = rustls::crypto::ring::default_provider().install_default();
 
         Self
         { 
@@ -187,7 +188,7 @@ impl HyperClient
     ///выберется рандомное время из данного рэнджа
     pub fn new_with_timeout(uri: Uri, from: u64, to: u64, retry_count: u8) -> Self
     {
-
+        let _ = rustls::crypto::ring::default_provider().install_default();
         Self
         { 
             uri, 
