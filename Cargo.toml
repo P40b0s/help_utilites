@@ -7,6 +7,7 @@ edition = "2021"
 default = ["dates", "hashing", "retry", "http"]
 dates = ["dep:chrono"]
 hashing = ["dep:blake2", "dep:hashbrown", "dep:base64ct"]
+async-io = ["dep:tokio"]
 http = [
     "dep:hyper",
     "dep:url",

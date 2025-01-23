@@ -1,6 +1,6 @@
 use std::{fs::File, io::Read, path::{Path, PathBuf}};
-use crate::error::Error;
 use logger::error;
+#[cfg(feature="async-io")]
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 pub fn read_file_to_binary<P: AsRef<Path>>(file_path: P) -> std::io::Result<Vec<u8>>
@@ -11,6 +11,7 @@ pub fn read_file_to_binary<P: AsRef<Path>>(file_path: P) -> std::io::Result<Vec<
     let _ = f.read_to_end(&mut buffer)?;
     Ok(buffer)
 }
+#[cfg(feature="async-io")]
 pub async fn read_file_to_binary_async<P: AsRef<Path>>(file_path: P) -> std::io::Result<Vec<u8>>
 {
     let f = tokio::fs::File::open(file_path).await?;
@@ -38,6 +39,7 @@ pub fn get_dirs<P: AsRef<Path>>(path: P) -> Option<Vec<String>>
     }
     return Some(dirs);
 }
+#[cfg(feature="async-io")]
 pub async fn get_dirs_async<P: AsRef<Path>>(path: P) -> Result<Vec<String>, crate::error::Error>
 {
     let mut paths = tokio::fs::read_dir(path).await?;
