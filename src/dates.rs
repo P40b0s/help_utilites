@@ -388,7 +388,7 @@ impl Date
             self
         }
     }
-    /// Высчитывает разницу между датами
+    /// Высчитывает разницу между датами в днях
     pub fn diff(&self, end_date: Date) -> Diff
     {
         let start_date = self;

@@ -20,6 +20,34 @@ pub async fn read_file_to_binary_async<P: AsRef<Path>>(file_path: P) -> std::io:
     let _ = f.read_to_end(&mut buffer).await?;
     Ok(buffer)
 }
+///совпадение имени файла по маске
+/// ```
+/// coincidence_by_mask("file.txt",  "f*.txt")
+/// ```
+/// 
+pub fn coincidence_by_mask(file_name: &str, mask: &str) -> bool
+{
+    if let Some((start, end)) = mask.split_once("*")
+    {
+        logger::info!("start: `{}` end: `{}`", start, end);
+        if start.is_empty()
+        {
+            file_name.ends_with(end)
+        }
+        else if end.is_empty() 
+        {
+            file_name.starts_with(start)
+        }
+        else 
+        {
+            file_name.starts_with(start) && file_name.ends_with(end)
+        }
+    }
+    else 
+    {
+        file_name == mask
+    }
+}
 
 
 ///Получение списка директорий
@@ -135,5 +163,14 @@ mod tests
         let file = "/hard/xar/projects/test_data/copy_from_in_test_data/in3/15943916/document.xml";
         let file = super::open_file(file, None).await;
         info!("{}", file.unwrap());
+    }
+    #[test]
+    fn testsearch_by_mask()
+    {
+        let _ = logger::StructLogger::new_default();
+        assert!(super::coincidence_by_mask("file.txt",  "f*.txt"));
+        assert!(super::coincidence_by_mask("file.txt",  "*le.txt"));
+        assert!(super::coincidence_by_mask("file.txt",  "fi*.txt"));
+        assert!(super::coincidence_by_mask("file.txt",  "file.t*"));
     }
 }
