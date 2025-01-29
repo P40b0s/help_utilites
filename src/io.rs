@@ -50,7 +50,8 @@ pub fn coincidence_by_mask(file_name: &str, mask: &str) -> bool
 }
 
 
-///Получение списка директорий
+#[deprecated = "Получает список всех файлов и директорий, для директорий необходимо использовать `get_only_dirs`"]
+///Получение списка всех файлов и директорий
 pub fn get_dirs<P: AsRef<Path>>(path: P) -> Option<Vec<String>>
 {
     let paths = std::fs::read_dir(path);
@@ -64,6 +65,26 @@ pub fn get_dirs<P: AsRef<Path>>(path: P) -> Option<Vec<String>>
     {
         let dir = d.unwrap().file_name().to_str().unwrap().to_owned();
         dirs.push(dir);
+    }
+    return Some(dirs);
+}
+///Получение списка всех директорий
+pub fn get_only_dirs<P: AsRef<Path>>(path: P) -> Option<Vec<PathBuf>>
+{
+    let paths = std::fs::read_dir(path);
+    if paths.is_err()
+    {
+        error!("😳 Ошибка чтения директории -> {}", paths.err().unwrap());
+        return None;
+    }
+    let mut dirs = vec![];
+    for d in paths.unwrap()
+    {
+        let dir = d.unwrap().path();
+        if dir.is_dir()
+        {
+            dirs.push(dir);
+        }
     }
     return Some(dirs);
 }
