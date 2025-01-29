@@ -88,6 +88,25 @@ pub fn get_only_dirs<P: AsRef<Path>>(path: P) -> Option<Vec<PathBuf>>
     }
     return Some(dirs);
 }
+///рекурсивное копирование директорий
+pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), crate::error::Error> 
+{
+    std::fs::create_dir_all(&dst)?;
+    for entry in std::fs::read_dir(src)? 
+    {
+        let entry = entry?;
+        let ty = entry.file_type()?;
+        if ty.is_dir() 
+        {
+            copy_dir_all(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        } 
+        else 
+        {
+            std::fs::copy(entry.path(), dst.as_ref().join(entry.file_name()))?;
+        }
+    }
+    Ok(())
+}
 #[cfg(feature="async-io")]
 pub async fn get_dirs_async<P: AsRef<Path>>(path: P) -> Result<Vec<String>, crate::error::Error>
 {
