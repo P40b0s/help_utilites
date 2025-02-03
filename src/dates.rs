@@ -335,6 +335,13 @@ impl Date
         let source_time = self.0.time();
         source_time.hour() == in_hour
     }
+    pub fn with_time(self, date_with_time: &Date) -> Self
+    {
+        let old_time = date_with_time.0.time();
+        let new_date = Date::new_date(self.0.day(), self.0.month(), self.0.year() as u32)
+        .add_minutes(((old_time.hour() * 60) + old_time.minute()) as i64);
+        new_date
+    }
     pub fn is_today(&self) -> bool
     {
         let today = Self::now();
