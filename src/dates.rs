@@ -1,6 +1,6 @@
 use std::{borrow::Cow, collections::BTreeSet, fmt::{Display, Write}};
 
-use chrono::{DateTime, Datelike, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, TimeZone, Timelike, Utc, Weekday};
+use chrono::{DateTime, Datelike, FixedOffset, Local, Months, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, TimeZone, Timelike, Utc, Weekday};
 use logger::{error, backtrace};
 use serde::{Deserialize, Serialize};
 pub const FORMAT_SERIALIZE_DATE_TIME: &'static str = "%Y-%m-%dT%H:%M:%S";
@@ -268,6 +268,11 @@ impl Date
         let s = Self(self.0.checked_add_signed(TimeDelta::minutes(-minutes)).unwrap());
         s
     }
+    pub fn add_months(self, months: u32) -> Option<Self>
+    {
+        let s = Self(self.0.checked_add_months(Months::new(months))?);
+        Some(s)
+    }
 
     
 
@@ -364,19 +369,21 @@ impl Date
         }
         false
     }
+    ///del all exists dates in `items` if exists in `to_remove`
     pub fn exclude(items: &mut Vec<Date>, to_remove: Vec<Date>, compare: DateFormat)
     {
         let to_remove: Vec<String> = BTreeSet::from_iter(to_remove).into_iter().map(|m| m.format(compare.clone())).collect();
         items.retain(|e| !to_remove.contains(&e.format(compare.clone())));
     }
+    ///del all exists dates in source and add all added_dates
     pub fn union(items: &mut Vec<Date>, added_dates: Vec<Date>, compare: DateFormat)
     {
-        //del all exists dates in source and add all added_dates
+        
         let formated_dates: Vec<String> = BTreeSet::from_iter(&added_dates).into_iter().map(|m| m.format(compare.clone())).collect();
         items.retain(|e| !formated_dates.contains(&e.format(compare.clone())));
         items.extend(added_dates);
     }
-    
+    ///добавляет время до конца текущей даты например 2022-10-26T13:23:52 -> 2022-10-26T23:59:59 
     fn add_time_to_end_day(self) -> Self
     {
         if self.0.hour() == 0 && self.0.minute() == 0 && self.0.second() == 0
