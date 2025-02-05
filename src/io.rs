@@ -2,6 +2,8 @@ use std::{io::Read, path::{Path, PathBuf}};
 use logger::error;
 #[cfg(feature="async-io")]
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+#[cfg(feature="async-io")]
+use futures::FutureExt;
 ///чтение файла в бинарный вектор
 pub fn read_file_to_binary<P: AsRef<Path>>(file_path: P) -> std::io::Result<Vec<u8>>
 {
@@ -109,30 +111,36 @@ pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), 
 
 #[cfg(feature="async-io")]
 ///search files in directory by mask `f*.txt`, `*.txt`, `file*`
-pub async fn get_files_by_mask(target_dir: impl AsRef<Path>, mask: &str) -> Result<Vec<PathBuf>, crate::error::Error> 
+pub fn get_files_by_mask(target_dir: impl AsRef<Path> + Send, mask: &str) -> futures::future::BoxFuture<'static, Result<Vec<PathBuf>, crate::error::Error>> 
 {
-    let target_dir = target_dir.as_ref();
-    let mut list  = tokio::fs::read_dir(target_dir).await?;
-    let mut output = Vec::new();
-    while let Some(entry) = list.next_entry().await?
+    let target_dir = target_dir.as_ref().to_owned();
+    let mask = mask.to_owned();
+    async move
     {
-        let ty = entry.file_type().await?;
-        if ty.is_dir()
+        
+        let mut list  = tokio::fs::read_dir(&target_dir).await?;
+        let mut output = Vec::new();
+        while let Some(entry) = list.next_entry().await?
         {
-            return get_files_by_mask(target_dir, mask).await;
-        }
-        else 
-        {
-            if let Some(name) = entry.file_name().to_str()
+            let ty = entry.file_type().await?;
+            if ty.is_dir()
             {
-                if coincidence_by_mask(name, mask)
+                return get_files_by_mask(&target_dir, &mask).await;
+            }
+            else 
+            {
+                if let Some(name) = entry.file_name().to_str()
                 {
-                    output.push(entry.path());
+                    if coincidence_by_mask(name, &mask)
+                    {
+                        output.push(entry.path());
+                    }
                 }
             }
         }
-    }
-    Ok(output)
+        Ok(output)
+    }.boxed()
+    
 }
 #[cfg(feature="async-io")]
 pub async fn get_dirs_async<P: AsRef<Path>>(path: P) -> Result<Vec<String>, crate::error::Error>
@@ -239,5 +247,13 @@ mod tests
         assert!(super::coincidence_by_mask("file.txt",  "*le.txt"));
         assert!(super::coincidence_by_mask("file.txt",  "fi*.txt"));
         assert!(super::coincidence_by_mask("file.txt",  "file.t*"));
+    }
+    #[tokio::test]
+    async fn testsearch_by_mask2()
+    {
+        
+        let _ = logger::StructLogger::new_default();
+        let files = super::get_files_by_mask("/hard/xar/projects/tests/5",  "*.test").await.unwrap();
+        assert!(files.len() == 2);
     }
 }
