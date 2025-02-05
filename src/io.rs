@@ -2,7 +2,7 @@ use std::{io::Read, path::{Path, PathBuf}};
 use logger::error;
 #[cfg(feature="async-io")]
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-
+///чтение файла в бинарный вектор
 pub fn read_file_to_binary<P: AsRef<Path>>(file_path: P) -> std::io::Result<Vec<u8>>
 {
     let f = std::fs::File::open(file_path)?;

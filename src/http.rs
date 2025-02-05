@@ -426,7 +426,7 @@ impl HyperClient
                 else 
                 {
                     req.headers_mut().insert(COOKIE, c.clone());
-                    logger::debug!("Установлены новые куки, деаем поторный запрос на {}, headers: {:?}", req.uri(), req.headers());
+                    logger::debug!("Установлены новые куки, делаем поторный запрос на {}, headers: {:?}", req.uri(), req.headers());
                     
                 }
                 response = client
@@ -852,20 +852,25 @@ mod decoding
 
     struct NeverRealloc<'a, T>(pub &'a mut Vec<T>);
 
-    impl<T> NeverRealloc<'_, T> {
+    impl<T> NeverRealloc<'_, T> 
+    {
         #[inline]
-        pub fn push(&mut self, val: T) {
+        pub fn push(&mut self, val: T) 
+        {
             // these branches only exist to remove redundant reallocation code
             // (the capacity is always sufficient)
-            if self.0.len() != self.0.capacity() {
+            if self.0.len() != self.0.capacity() 
+            {
                 self.0.push(val);
             }
         }
         #[inline]
-        pub fn extend_from_slice(&mut self, val: &[T]) where T: Clone {
-            if self.0.capacity() - self.0.len() >= val.len() {
+        pub fn extend_from_slice(&mut self, val: &[T]) where T: Clone 
+        {
+            if self.0.capacity() - self.0.len() >= val.len() 
+            {
                 self.0.extend_from_slice(val);
-            }
+            } 
         }
     }
 }
