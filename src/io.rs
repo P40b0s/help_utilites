@@ -107,6 +107,7 @@ pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), 
     Ok(())
 }
 
+#[cfg(feature="async-io")]
 ///search files in directory by mask `f*.txt`, `*.txt`, `file*`
 pub async fn get_files_by_mask(target_dir: impl AsRef<Path>, mask: &str) -> Result<Vec<PathBuf>, crate::error::Error> 
 {
