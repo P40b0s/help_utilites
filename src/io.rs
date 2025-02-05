@@ -1,12 +1,11 @@
-use std::{fs::File, io::Read, path::{Path, PathBuf}};
+use std::{io::Read, path::{Path, PathBuf}};
 use logger::error;
-use tokio::io::AsyncReadExt;
 #[cfg(feature="async-io")]
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 pub fn read_file_to_binary<P: AsRef<Path>>(file_path: P) -> std::io::Result<Vec<u8>>
 {
-    let f = File::open(file_path)?;
+    let f = std::fs::File::open(file_path)?;
     let mut f = f;
     let mut buffer = Vec::new();
     let _ = f.read_to_end(&mut buffer)?;
