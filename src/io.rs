@@ -1,5 +1,6 @@
 use std::{fs::File, io::Read, path::{Path, PathBuf}};
 use logger::error;
+use tokio::io::AsyncReadExt;
 #[cfg(feature="async-io")]
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
