@@ -665,4 +665,15 @@ mod test
         debug!("{:?}", &dates);
     }
 
+    #[test]
+    pub fn test_with_time() 
+    {
+        let _ = logger::StructLogger::new_default();
+        let date = Date::parse("2024-04-30 11:22:00").unwrap();
+        let now = Date::now();
+        let n = now.with_time(&date).add_months(1);
+        
+        debug!("{:?}", n);
+    }
+
 }

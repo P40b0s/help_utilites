@@ -29,7 +29,6 @@ pub fn coincidence_by_mask(file_name: &str, mask: &str) -> bool
 {
     if let Some((start, end)) = mask.split_once("*")
     {
-        logger::info!("start: `{}` end: `{}`", start, end);
         if start.is_empty()
         {
             file_name.ends_with(end)
@@ -106,6 +105,33 @@ pub fn copy_dir_all(src: impl AsRef<Path>, dst: impl AsRef<Path>) -> Result<(), 
         }
     }
     Ok(())
+}
+
+///search files in directory by mask `f*.txt`, `*.txt`, `file*`
+pub async fn get_files_by_mask(target_dir: impl AsRef<Path>, mask: &str) -> Result<Vec<PathBuf>, crate::error::Error> 
+{
+    let target_dir = target_dir.as_ref();
+    let mut list  = tokio::fs::read_dir(target_dir).await?;
+    let mut output = Vec::new();
+    while let Some(entry) = list.next_entry().await?
+    {
+        let ty = entry.file_type().await?;
+        if ty.is_dir()
+        {
+            return get_files_by_mask(target_dir, mask).await;
+        }
+        else 
+        {
+            if let Some(name) = entry.file_name().to_str()
+            {
+                if coincidence_by_mask(name, mask)
+                {
+                    output.push(entry.path());
+                }
+            }
+        }
+    }
+    Ok(output)
 }
 #[cfg(feature="async-io")]
 pub async fn get_dirs_async<P: AsRef<Path>>(path: P) -> Result<Vec<String>, crate::error::Error>
