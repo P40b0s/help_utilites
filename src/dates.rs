@@ -273,6 +273,11 @@ impl Date
         let s = Self(self.0.checked_add_months(Months::new(months))?);
         Some(s)
     }
+    pub fn add_seconds(self, seconds: i64) -> Self
+    {
+        let s = Self(self.0.checked_add_signed(TimeDelta::seconds(seconds)).unwrap());
+        s
+    }
 
     
 
