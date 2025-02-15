@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeSet, fmt::{Display, Write}};
+use std::{borrow::Cow, collections::BTreeSet, fmt::{Display, Write}, ops::{Add, Sub}};
 
 use chrono::{DateTime, Datelike, FixedOffset, Local, Months, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, TimeZone, Timelike, Utc, Weekday};
 use logger::{error, backtrace};
@@ -481,6 +481,23 @@ impl Date
         let n: NaiveDateTime = dt_now_local.naive_local();
         Self(n)
     
+    }
+}
+
+impl Sub for Date
+{
+    type Output = i64;
+    fn sub(self, rhs: Self) -> Self::Output 
+    {
+        self.as_naive_datetime().and_utc().timestamp() - rhs.as_naive_datetime().and_utc().timestamp()
+    }
+}
+impl Add for Date
+{
+    type Output = i64;
+    fn add(self, rhs: Self) -> Self::Output 
+    {
+        self.as_naive_datetime().and_utc().timestamp() + rhs.as_naive_datetime().and_utc().timestamp()
     }
 }
 
