@@ -484,7 +484,8 @@ impl Date
     }
 }
 
-impl Sub for Date
+
+impl Sub for &Date
 {
     type Output = i64;
     fn sub(self, rhs: Self) -> Self::Output 
@@ -492,7 +493,7 @@ impl Sub for Date
         self.as_naive_datetime().and_utc().timestamp() - rhs.as_naive_datetime().and_utc().timestamp()
     }
 }
-impl Add for Date
+impl Add for &Date
 {
     type Output = i64;
     fn add(self, rhs: Self) -> Self::Output 
