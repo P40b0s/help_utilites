@@ -3,6 +3,7 @@ pub mod io;
 pub mod error;
 mod exclude;
 mod serialize;
+mod utils;
 pub use serialize::*;
 pub use exclude::exclude;
 #[cfg(feature="dates")]
@@ -24,4 +25,5 @@ pub use retry::{retry, retry_sync};
 pub mod http;
 #[cfg(feature="http")]
 pub use url::*;
+pub use utils::SimpleRand;
 
