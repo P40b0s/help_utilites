@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::BTreeSet, fmt::{Display, Write}, ops::{Add, Sub}};
+use std::{borrow::Cow, collections::BTreeSet, fmt::{Display, Write}, ops::{Add, Sub}, str::FromStr};
 
 use chrono::{DateTime, Datelike, FixedOffset, Local, Months, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, TimeZone, Timelike, Utc, Weekday};
 use logger::{error, backtrace};
@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 pub const FORMAT_SERIALIZE_DATE_TIME: &'static str = "%Y-%m-%dT%H:%M:%S";
 ///26-10-2022T13:23:52
 pub const FORMAT_SERIALIZE_DATE_TIME_REVERSE: &'static str = "%d-%m-%YT%H:%M:%S";
+pub const FORMAT_SERIALIZE_MSSQL: &'static str = "%Y-%m-%d %H:%M:%S.%f";
 pub const FORMAT_SERIALIZE_DATE_TIME_WS: &'static str = "%Y-%m-%d %H:%M:%S";
 pub const FORMAT_DOT_DATE: &'static str = "%d.%m.%Y";
 pub const FORMAT_DASH_DATE: &'static str = "%d-%m-%Y";
@@ -140,6 +141,10 @@ impl Date
         {
             Some(Date(dt))
         }
+        else if let Ok(dt) = NaiveDateTime::parse_from_str(&date, FORMAT_SERIALIZE_MSSQL)
+        {
+            Some(Date(dt))
+        }
         else if let Ok(dt) = NaiveDate::parse_from_str(&date, FORMAT_DOT_DATE)
         {
             let dt =  dt.and_hms_opt(0, 0, 0).unwrap();
@@ -249,6 +254,16 @@ impl Date
             DateFormat::DotDate => self.0.format(FORMAT_DOT_DATE).to_string(),
             DateFormat::JoinDate => self.0.format(FORMAT_JOIN_DATE).to_string(),
             DateFormat::Time => self.0.format(FORMAT_TIME).to_string(),
+            DateFormat::MsqSqlDate => 
+            {
+                let nanos =  self.0.and_utc().timestamp_subsec_nanos() % 1000;
+                let formatted = format!(
+                    "{}.{}",
+                    self.0.format("%Y-%m-%d %H:%M:%S"),
+                    nanos
+                );
+                formatted
+            },
             DateFormat::FullDate => 
             {
                 let day = self.0.day();
@@ -484,6 +499,24 @@ impl Date
     }
 }
 
+impl FromStr for Date
+{
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> 
+    {
+        if let Some(d) = Date::parse(s)
+        {
+            Ok(d)
+        }
+        else 
+        {
+            let error = format!("Ошибка входного формата данных - {}. Поддерживаются форматы: {}, {}, {}, {}, {}, {}, {}", s, FORMAT_JOIN_DATE, FORMAT_DOT_DATE, FORMAT_SERIALIZE_DATE_TIME, FORMAT_SERIALIZE_DATE_TIME_REVERSE, FORMAT_SERIALIZE_DATE_TIME_WS, FORMAT_TIME, FORMAT_SERIALIZE_MSSQL);
+            error!("{}", &error);
+            Err(error)
+        }
+        
+    }
+}
 
 impl Sub for &Date
 {
@@ -524,6 +557,8 @@ pub enum DateFormat
     FullDate,
     /// 20240618
     JoinDate,
+    ///2025-03-11 15:51:21.452
+    MsqSqlDate,
     ///12:00:00
     Time
 }
@@ -595,6 +630,9 @@ mod test
         assert_eq!(date.format(DateFormat::Serialize), "2022-10-26T13:23:52".to_owned());
         assert_eq!(date.format(DateFormat::OnlyDate), "26-10-2022".to_owned());
         assert_eq!(date.format(DateFormat::SerializeReverse), "26-10-2022T13:23:52".to_owned());
+        let date_ms = Date::parse("2022-10-26 13:23:52.412").unwrap();
+        debug!("Парсинг в формате mssql: 2022-10-26 13:23:52.412 - {} ", date_ms.format(DateFormat::MsqSqlDate));
+        assert_eq!(date_ms.format(DateFormat::MsqSqlDate), "2022-10-26 13:23:52.412".to_owned());
         debug!("Вывод в формате DotDate: {}", date.format(DateFormat::DotDate));
         debug!("Вывод в формате Serialize: {}", date.format(DateFormat::Serialize));
         debug!("Вывод в формате OnlyDate: {}", date.format(DateFormat::OnlyDate));
