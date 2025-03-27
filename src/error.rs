@@ -28,6 +28,8 @@ pub enum Error
     SendError(String),
     #[error("Ошибка открытия фала `{0}` -> {1}")]
     FileOpenError(String, String),
+    #[error("Ошибка входного формата при преобразовании `{0}` -> {1}")]
+    DateParseError(String, String),
     // #[error(transparent)]
     // #[cfg(feature="http")]
     // ReqwestError(#[from] reqwest::Error),

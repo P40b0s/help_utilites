@@ -3,6 +3,8 @@ use std::{borrow::Cow, collections::BTreeSet, fmt::{Display, Write}, ops::{Add, 
 use chrono::{DateTime, Datelike, FixedOffset, Local, Months, NaiveDate, NaiveDateTime, NaiveTime, TimeDelta, TimeZone, Timelike, Utc, Weekday};
 use logger::{error, backtrace};
 use serde::{Deserialize, Serialize};
+
+use crate::error::Error;
 pub const FORMAT_SERIALIZE_DATE_TIME: &'static str = "%Y-%m-%dT%H:%M:%S";
 ///26-10-2022T13:23:52
 pub const FORMAT_SERIALIZE_DATE_TIME_REVERSE: &'static str = "%d-%m-%YT%H:%M:%S";
@@ -501,7 +503,7 @@ impl Date
 
 impl FromStr for Date
 {
-    type Err = String;
+    type Err = Error;
     fn from_str(s: &str) -> Result<Self, Self::Err> 
     {
         if let Some(d) = Date::parse(s)
@@ -510,11 +512,8 @@ impl FromStr for Date
         }
         else 
         {
-            let error = format!("Ошибка входного формата данных - {}. Поддерживаются форматы: {}, {}, {}, {}, {}, {}, {}", s, FORMAT_JOIN_DATE, FORMAT_DOT_DATE, FORMAT_SERIALIZE_DATE_TIME, FORMAT_SERIALIZE_DATE_TIME_REVERSE, FORMAT_SERIALIZE_DATE_TIME_WS, FORMAT_TIME, FORMAT_SERIALIZE_MSSQL);
-            error!("{}", &error);
-            Err(error)
+            Err(Error::DateParseError(s.to_string(), ["Поддерживаются форматы:", FORMAT_JOIN_DATE, FORMAT_DOT_DATE, FORMAT_SERIALIZE_DATE_TIME, FORMAT_SERIALIZE_DATE_TIME_REVERSE, FORMAT_SERIALIZE_DATE_TIME_WS, FORMAT_TIME, FORMAT_SERIALIZE_MSSQL].concat()))
         }
-        
     }
 }
 
