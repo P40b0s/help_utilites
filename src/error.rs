@@ -30,6 +30,10 @@ pub enum Error
     FileOpenError(String, String),
     #[error("Ошибка входного формата при преобразовании `{0}` -> {1}")]
     DateParseError(String, String),
+    #[error("Ошибка base64 `{0}`")]
+    #[cfg(feature="hashing")]
+    Base64Error(base64ct::Error),
+    
     // #[error(transparent)]
     // #[cfg(feature="http")]
     // ReqwestError(#[from] reqwest::Error),

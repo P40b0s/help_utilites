@@ -2,6 +2,8 @@ use std::path::Path;
 use blake2::{Blake2b512, Digest};
 use base64ct::{Base64, Encoding};
 
+use crate::error::Error;
+
 
 ///емкость буфера для  blake2b512 (to base64) = 88
 //const BUF_SIZE: usize = 88;
@@ -22,24 +24,31 @@ impl Hasher
         }).ok()
     }
     
-    ///Создание хэша base64 из массива строк
+    ///replace whitespaces, to_lower, blake2b to base64 string
     pub fn hash_from_strings<I: IntoIterator<Item = S>, S: AsRef<str>>(args: I) -> String
     {
         let normalize_string = normalize(args);
         let args_bytes = normalize_string.as_bytes();
         Self::hashing(args_bytes)
     }
+    ///replace whitespaces, to_lower, blake2b to base64 string
     pub fn hash_from_string<S: AsRef<str>>(val: S) -> String
     {
         let normalize_string = normalize(&[val]);
         let args_bytes = normalize_string.as_bytes();
         Self::hashing(args_bytes)
     }
-    ///создание хеша из массива байтов
+    ///vec<u8> to base64 string
     pub fn from_bytes_to_base64<S: AsRef<[u8]>>(v : S) -> String
     {
         Base64::encode_string(v.as_ref())
     }
+    ///base64 string to vec<u8>
+    pub fn from_base64_to_bytes<S: AsRef<str>>(v : S) -> Result<Vec<u8>, Error>
+    {
+        Base64::decode_vec(v.as_ref()).map_err(|e| Error::Base64Error(e))
+    }
+    
     fn hashing<S: AsRef<[u8]>>(data: S) -> String
     {
         let mut hasher = Blake2b512::new();
