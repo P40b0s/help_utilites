@@ -14,7 +14,14 @@ impl Hasher
     {
         Self::hashing(data)
     }
-    
+
+    #[cfg(feature="async-io")]
+    pub async fn hash_from_path_async<P: AsRef<Path>>(path: P) -> Result<String, Error>
+    {
+        let file = crate::io::read_file_to_binary_async(&path).await?;
+        let hash = Self::hashing(&file);
+        Ok(hash)
+    }
     pub fn hash_from_path<P: AsRef<Path>>(path: P) -> Option<String>
     {
         crate::io::read_file_to_binary(&path).and_then(|f|
@@ -24,14 +31,14 @@ impl Hasher
         }).ok()
     }
     
-    ///replace whitespaces, to_lower, blake2b to base64 string
+    ///replace whitespaces, to_lower, blake3b to base64 string
     pub fn hash_from_strings<I: IntoIterator<Item = S>, S: AsRef<str>>(args: I) -> String
     {
         let normalize_string = normalize(args);
         let args_bytes = normalize_string.as_bytes();
         Self::hashing(args_bytes)
     }
-    ///replace whitespaces, to_lower, blake2b to base64 string
+    ///replace whitespaces, to_lower, blake3b to base64 string
     pub fn hash_from_string<S: AsRef<str>>(val: S) -> String
     {
         let normalize_string = normalize(&[val]);
