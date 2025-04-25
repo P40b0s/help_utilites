@@ -248,6 +248,7 @@ mod tests
         assert!(super::coincidence_by_mask("file.txt",  "fi*.txt"));
         assert!(super::coincidence_by_mask("file.txt",  "file.t*"));
     }
+    #[cfg(feature="async-io")]
     #[tokio::test]
     async fn testsearch_by_mask2()
     {

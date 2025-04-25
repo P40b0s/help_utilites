@@ -3,7 +3,7 @@ use logger::{error, warn};
 use serde::de::DeserializeOwned;
 pub use serde::{de, Deserialize, Deserializer, Serialize};
 pub use serde_json;
-
+#[cfg(feature="dates")]
 use crate::Date;
 
 ///Сериализация объекта в строковый формат

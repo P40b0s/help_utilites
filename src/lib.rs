@@ -4,6 +4,7 @@ pub mod error;
 mod exclude;
 mod serialize;
 mod utils;
+mod dates_wasm;
 pub use serialize::*;
 pub use exclude::exclude;
 #[cfg(feature="dates")]

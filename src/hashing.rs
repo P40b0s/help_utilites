@@ -1,5 +1,5 @@
 use std::path::Path;
-use blake2::{Blake2b512, Digest};
+use blake3::Hasher as B3Hasher;
 use base64ct::{Base64, Encoding};
 
 use crate::error::Error;
@@ -51,10 +51,11 @@ impl Hasher
     
     fn hashing<S: AsRef<[u8]>>(data: S) -> String
     {
-        let mut hasher = Blake2b512::new();
-        hasher.update(data);
+        let mut hasher = B3Hasher::new();
+
+        hasher.update(data.as_ref());
         let hash = hasher.finalize();
-        let hash_vec: &[u8] = hash.as_ref();
+        let hash_vec: &[u8] = hash.as_bytes();
         let hash_string = Self::from_bytes_to_base64(hash_vec);
         hash_string
         // //if let Ok(hash_string) = std::str::from_utf8(&hash_vec)
@@ -102,7 +103,7 @@ mod test
         let s = &["1 ываываыва ыаваыва ыва ыва23", "45ыва ыва ыва ываываыва6", "78ацуацуаца ывацуац уацуац вацуа цуацуа цуа 9"];
         let tt = super::Hasher::hash_from_strings(s);
         debug!("{}", &tt); 
-        assert_eq!(tt, "OxDqYVEd8T//XVBGN3sD2lZ6mVMD3XLcDsKFNnOnD2m2WRu1vHpeFa4nSLsXHQQ6W1YrELQ/9xzF+kYmpY3xAw==".to_owned());
+        assert_eq!(tt, "2sgXOJ7sqyqKkIQNCEEuXr98lIAX+k4ixzfK1srAcCc=".to_owned());
     }
 
 
