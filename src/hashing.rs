@@ -1,45 +1,43 @@
 use std::path::Path;
-use blake3::Hasher as B3Hasher;
+use blake3::{Hash, Hasher as B3Hasher};
 use base64ct::{Base64, Encoding};
-
 use crate::error::Error;
 
 
-///емкость буфера для  blake2b512 (to base64) = 88
-//const BUF_SIZE: usize = 88;
-pub struct Hasher{}
+pub struct Hasher
+{
+    hash: Hash
+}
 impl Hasher
 {
-    pub fn hash_from_slice<S: AsRef<[u8]>>(data: S) -> String
+    pub fn from_slice<S: AsRef<[u8]>>(data: S) -> Self
     {
         Self::hashing(data)
     }
 
     #[cfg(feature="async-io")]
-    pub async fn hash_from_path_async<P: AsRef<Path>>(path: P) -> Result<String, Error>
+    pub async fn from_path_async<P: AsRef<Path>>(path: P) -> Result<Self, Error>
     {
         let file = crate::io::read_file_to_binary_async(&path).await?;
         let hash = Self::hashing(&file);
         Ok(hash)
     }
-    pub fn hash_from_path<P: AsRef<Path>>(path: P) -> Option<String>
+    pub fn from_path<P: AsRef<Path>>(path: P) -> Result<Self, Error>
     {
-        crate::io::read_file_to_binary(&path).and_then(|f|
-        {
-            let hash = Self::hashing(&f);
-            Ok(hash)
-        }).ok()
+        let file = crate::io::read_file_to_binary(&path)?;
+        let hash = Self::hashing(&file);
+        Ok(hash)
     }
     
     ///replace whitespaces, to_lower, blake3b to base64 string
-    pub fn hash_from_strings<I: IntoIterator<Item = S>, S: AsRef<str>>(args: I) -> String
+    pub fn from_strings<I: IntoIterator<Item = S>, S: AsRef<str>>(args: I) -> Self
     {
         let normalize_string = normalize(args);
         let args_bytes = normalize_string.as_bytes();
         Self::hashing(args_bytes)
     }
     ///replace whitespaces, to_lower, blake3b to base64 string
-    pub fn hash_from_string<S: AsRef<str>>(val: S) -> String
+    pub fn from_string<S: AsRef<str>>(val: S) -> Self
     {
         let normalize_string = normalize(&[val]);
         let args_bytes = normalize_string.as_bytes();
@@ -55,38 +53,29 @@ impl Hasher
     {
         Base64::decode_vec(v.as_ref()).map_err(|e| Error::Base64Error(e))
     }
-    
-    fn hashing<S: AsRef<[u8]>>(data: S) -> String
+    pub fn as_base64(&self) -> String
+    {
+        Base64::encode_string(self.hash.as_bytes())
+    }
+    pub fn as_hex(&self) -> String
+    {
+        self.hash.to_hex().to_string()
+    }
+    pub fn as_bytes(&self) -> &[u8]
+    {
+        self.hash.as_bytes()
+    }
+    fn hashing<S: AsRef<[u8]>>(data: S) -> Self
     {
         let mut hasher = B3Hasher::new();
-
         hasher.update(data.as_ref());
         let hash = hasher.finalize();
-        let hash_vec: &[u8] = hash.as_bytes();
-        let hash_string = Self::from_bytes_to_base64(hash_vec);
-        hash_string
-        // //if let Ok(hash_string) = std::str::from_utf8(&hash_vec)
-        // unsafe {
-            
-        //         let str = std::str::from_utf8_unchecked(&hash_vec);
-        //         info!("Успешно сгенерирован хэш {}", &str);
-        //         Some(str.to_owned())
-           
-            // if let Ok(hash_string) = std::str::from_utf8_unchecked(&hash_vec)
-            // {
-            //     info!("Успешно сгенерирован хэш {}", &hash_string);
-            //     Some(hash_string.to_owned())
-            // }
-            // else
-            // {
-            //     error!("Ошибка входных параметров вектора от алгоритма blake2 {}", std::str::from_utf8(&hash_vec).err().unwrap().to_string());
-            //     None
-            // }
-        // }
+        Self
+        {
+            hash
+        }
     }
 }
-
-
 
 
 fn normalize<'a, I: IntoIterator<Item = S>, S: AsRef<str>>(args: I) -> String
@@ -108,9 +97,11 @@ mod test
     {
         let _ = logger::StructLogger::new_default();
         let s = &["1 ываываыва ыаваыва ыва ыва23", "45ыва ыва ыва ываываыва6", "78ацуацуаца ывацуац уацуац вацуа цуацуа цуа 9"];
-        let tt = super::Hasher::hash_from_strings(s);
-        debug!("{}", &tt); 
-        assert_eq!(tt, "2sgXOJ7sqyqKkIQNCEEuXr98lIAX+k4ixzfK1srAcCc=".to_owned());
+        let b64 = super::Hasher::from_strings(s).as_base64();
+        let hex = super::Hasher::from_strings(s).as_hex();
+        debug!("b64:{} hex:{}", &b64, &hex); 
+        assert_eq!(b64, "2sgXOJ7sqyqKkIQNCEEuXr98lIAX+k4ixzfK1srAcCc=".to_owned());
+        assert_eq!(hex, "dac817389eecab2a8a90840d08412e5ebf7c948017fa4e22c737cad6cac07027".to_owned());
     }
 
 

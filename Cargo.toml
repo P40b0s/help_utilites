@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"] 
 
 [features]
-default = ["async-io", "hashing"]
+default = []
 dates = ["dep:chrono"]
 hashing = ["dep:blake3", "dep:hashbrown", "dep:base64ct"]
 async-io = ["dep:tokio", "dep:futures"]
