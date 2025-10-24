@@ -29,7 +29,11 @@ pub enum Error
     #[error("Ошибка открытия фала `{0}` -> {1}")]
     FileOpenError(String, String),
     #[error("Ошибка входного формата при преобразовании `{0}` -> {1}")]
+    #[cfg(feature="dates")]
     DateParseError(String, String),
+    #[error("Ошибка даты `{0}`")]
+    #[cfg(feature="dates")]
+    DateError(String),
     #[error("Ошибка base64 `{0}`")]
     #[cfg(feature="hashing")]
     Base64Error(base64ct::Error),

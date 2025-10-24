@@ -45,9 +45,16 @@ impl<'de> Deserialize<'de> for Date
         D: serde::Deserializer<'de>,
     {
         let date = String::deserialize(deserializer)?;
-        let err = format!("Ошибка входного формата данных - {}. Поддерживаются форматы: {}", &date, [FORMAT_DOT_DATE, FORMAT_SERIALIZE_DATE_TIME, FORMAT_SERIALIZE_DATE_TIME_REVERSE, FORMAT_SERIALIZE_DATE_TIME_WS, FORMAT_SERIALIZE_DATE].join(", "));
-        let parsed = Date::parse(&date).map_err(|e| serde::de::Error::custom(err))?;
-        Ok(parsed)
+        let parsed = Date::parse(&date);
+        if let Some(date) = parsed
+        {
+            Ok(date)
+        }
+        else 
+        {
+            let err = format!("Ошибка входного формата данных - {}. Поддерживаются форматы: {}", &date, [FORMAT_DOT_DATE, FORMAT_SERIALIZE_DATE_TIME, FORMAT_SERIALIZE_DATE_TIME_REVERSE, FORMAT_SERIALIZE_DATE_TIME_WS, FORMAT_SERIALIZE_DATE].join(", "));
+            Err(serde::de::Error::custom(err))
+        }
     }
 }
 
@@ -294,6 +301,19 @@ impl Date
     {
         let s = Self(self.0.checked_add_signed(TimeDelta::seconds(seconds)).unwrap());
         s
+    }
+    ///from timestamp in secs
+    pub fn from_timestamp(ts: i64) -> Result<Date, Error>
+    {
+        let dt = DateTime::from_timestamp(ts, 0);
+        if let Some(dt) = dt
+        {
+            Ok(Self(dt.naive_utc()))
+        }
+        else 
+        {
+            Err(Error::DateError("Количество секунд неверно".to_owned()))
+        }
     }
 
     
