@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 
 use crate::error::Error;
 pub const FORMAT_SERIALIZE_DATE_TIME: &'static str = "%Y-%m-%dT%H:%M:%S";
+pub const FORMAT_SERIALIZE_DATE: &'static str = "%Y-%m-%d";
 ///26-10-2022T13:23:52
 pub const FORMAT_SERIALIZE_DATE_TIME_REVERSE: &'static str = "%d-%m-%YT%H:%M:%S";
 pub const FORMAT_SERIALIZE_MSSQL: &'static str = "%Y-%m-%d %H:%M:%S.%f";
@@ -44,16 +45,9 @@ impl<'de> Deserialize<'de> for Date
         D: serde::Deserializer<'de>,
     {
         let date = String::deserialize(deserializer)?;
-        let parsed = Date::parse(&date);
-        if let Some(d) = parsed
-        {
-            Ok(d)
-        }
-        else
-        {
-            let err = format!("Ошибка входного формата данных - {}. Поддерживаются форматы: {}, {}, {}, {}", &date, FORMAT_DOT_DATE, FORMAT_SERIALIZE_DATE_TIME, FORMAT_SERIALIZE_DATE_TIME_REVERSE, FORMAT_SERIALIZE_DATE_TIME_WS);
-            Err(serde::de::Error::custom(err))
-        }
+        let err = format!("Ошибка входного формата данных - {}. Поддерживаются форматы: {}", &date, [FORMAT_DOT_DATE, FORMAT_SERIALIZE_DATE_TIME, FORMAT_SERIALIZE_DATE_TIME_REVERSE, FORMAT_SERIALIZE_DATE_TIME_WS, FORMAT_SERIALIZE_DATE].join(", "));
+        let parsed = Date::parse(&date).map_err(|e| serde::de::Error::custom(err))?;
+        Ok(parsed)
     }
 }
 
@@ -173,6 +167,11 @@ impl Date
             let date = NaiveDate::from_ymd_opt(value.year(), value.month(), value.day()).expect("Ошибка первода даты из формата DateTime<Local> в формат NaiveDate");
             Some(Self(NaiveDateTime::new(date, time)))
         }
+        else if let Ok(dt) = NaiveDate::parse_from_str(&date, FORMAT_SERIALIZE_DATE)
+        {
+            let dt =  dt.and_hms_opt(0, 0, 0).unwrap();
+            Some(Date(dt))
+        }
         else 
         {
             error!("Ошибка входного формата данных - {}. Поддерживаются форматы: {}, {}, {}, {}, {}, {}", &date, FORMAT_JOIN_DATE, FORMAT_DOT_DATE, FORMAT_SERIALIZE_DATE_TIME, FORMAT_SERIALIZE_DATE_TIME_REVERSE, FORMAT_SERIALIZE_DATE_TIME_WS, FORMAT_TIME);
@@ -272,7 +271,8 @@ impl Date
                 let month = self.num_to_locale_month();
                 let year = self.0.year();
                 format!("{day:02} {month} {year}")
-            }
+            },
+            DateFormat::SerializeDate => self.0.format(FORMAT_SERIALIZE_DATE).to_string(),
         }  
     }
     pub fn add_minutes(self, minutes: i64) -> Self
@@ -546,6 +546,8 @@ pub enum DateFormat
 {
     /// 2022-10-26T13:23:52  
     Serialize,
+    /// 2022-10-26
+    SerializeDate,
     /// 26-10-2022T13:23:52  
     SerializeReverse,
     /// 26-10-2022  
