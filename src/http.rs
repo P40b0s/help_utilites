@@ -1,5 +1,4 @@
 use std::{any::TypeId, cell::LazyCell, net::{IpAddr, Ipv4Addr, SocketAddr}, result, sync::Arc, time::Duration};
-use hashbrown::HashMap;
 use http_body_util::Empty;
 pub use http_body_util::{BodyExt, Full};
 pub use hyper::{body::Bytes, header::*, Request, Response, StatusCode, Uri};
@@ -209,7 +208,7 @@ impl HyperClient
     }
     pub fn with_headers<S: AsRef<str> + ToString>(mut self, headers: Vec<(HeaderName, S)>) -> Self
     {
-        self.headers = headers.into_iter().map(|m| (m.0, m.1.to_string())).collect::<hashbrown::HashMap<HeaderName, String>>();
+        self.headers = headers.into_iter().map(|m| (m.0, m.1.to_string())).collect::<HashMap<HeaderName, String>>();
         self
     }
     pub fn add_path(mut self, path: &str) -> Self

@@ -9,7 +9,7 @@ crate-type = ["cdylib", "rlib"]
 [features]
 default = []
 dates = ["dep:chrono"]
-hashing = ["dep:blake3", "dep:hashbrown", "dep:base64ct"]
+hashing = ["dep:blake3", "dep:base64ct"]
 async-io = ["dep:tokio", "dep:futures"]
 http = [
     "dep:hyper",
@@ -44,7 +44,6 @@ rand="0.9.1"
 #hashing
 blake3 = {version="1.8.2", optional = true}
 base64ct = {version = "1.7.3", features = ["alloc"], optional = true}
-hashbrown = {version ="0.15.2" , features = ['serde'], optional = true}
 #io
 futures = {version = "0.3.31", optional = true}
 #http
