@@ -164,7 +164,7 @@ pub fn unauthorized_response() -> Response<BoxBody>
 pub struct HyperClient
 {
     uri: Uri,
-    headers: hashbrown::HashMap<HeaderName, String>,
+    headers: HashMap<HeaderName, String>,
     timeout_from: u64,
     timeout_to: u64,
     retry_count: u8
@@ -179,7 +179,7 @@ impl HyperClient
         Self
         { 
             uri, 
-            headers: hashbrown::HashMap::new(),
+            headers: HashMap::new(),
             timeout_from: 5000,
             timeout_to: 30000,
             retry_count: 7
@@ -192,7 +192,7 @@ impl HyperClient
         Self
         { 
             uri, 
-            headers: hashbrown::HashMap::new(),
+            headers: HashMap::new(),
             timeout_from: from,
             timeout_to: to,
             retry_count

@@ -7,7 +7,7 @@ edition = "2021"
 crate-type = ["cdylib", "rlib"] 
 
 [features]
-default = []
+default = ["http"]
 dates = ["dep:chrono"]
 hashing = ["dep:blake3", "dep:base64ct"]
 async-io = ["dep:tokio", "dep:futures"]
@@ -19,7 +19,8 @@ http = [
     "dep:tower-http",
     "dep:tokio",
     "dep:rustls",
-    "dep:hyper-rustls"
+    "dep:hyper-rustls",
+    "retry"
     #"dep:reqwest",
     #"dep:reqwest-retry",
     #"dep:reqwest-middleware",
