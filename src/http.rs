@@ -4,6 +4,7 @@ pub use http_body_util::{BodyExt, Full};
 pub use hyper::{body::Bytes, header::*, Request, Response, StatusCode, Uri};
 use hyper_util::{client::legacy::Client, rt::{TokioExecutor, TokioIo}};
 use rand::Rng;
+use std::collections::HashMap;
 use serde::Serialize;
 use tokio::{net::TcpSocket, sync::Mutex};
 pub use tokio::net::TcpStream;
