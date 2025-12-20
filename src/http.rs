@@ -345,7 +345,7 @@ impl HyperClient
 
     fn rnd_duration(timeout_from: u64, timeout_to: u64) -> Duration
     {
-        Duration::from_millis(rand::thread_rng().gen_range(timeout_from..timeout_to))
+        Duration::from_millis(rand::rng().random_range(timeout_from..timeout_to))
     }
     async fn get_body_retry<S: AsRef<str> + ToString, B: Serialize + Clone>(&self, params: &[(S, S)], method: &str, body: Option<B>) -> Result<(StatusCode, Bytes), Error>
     {
