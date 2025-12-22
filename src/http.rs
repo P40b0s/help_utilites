@@ -1,6 +1,7 @@
 use std::{any::TypeId, cell::LazyCell, net::{IpAddr, Ipv4Addr, SocketAddr}, result, sync::Arc, time::Duration};
 use http_body_util::Empty;
 pub use http_body_util::{BodyExt, Full};
+use hyper::Method;
 pub use hyper::{body::Bytes, header::*, Request, Response, StatusCode, Uri};
 use hyper_util::{client::legacy::Client, rt::{TokioExecutor, TokioIo}};
 use rand::Rng;
@@ -202,6 +203,10 @@ impl HyperClient
     {
         &self.uri
     }
+    pub fn with_path<P: AsRef<str>>(self, path: P) -> Self
+    {
+        self.add_path(path.as_ref())
+    }
     pub fn with_header<S: AsRef<str> + ToString>(mut self, name: HeaderName, value: S) -> Self
     {
         self.headers.insert(name, value.to_string());
@@ -212,7 +217,7 @@ impl HyperClient
         self.headers = headers.into_iter().map(|m| (m.0, m.1.to_string())).collect::<HashMap<HeaderName, String>>();
         self
     }
-    pub fn add_path(mut self, path: &str) -> Self
+    fn add_path(mut self, path: &str) -> Self
     {
         let mut uri = self.uri.to_string();
         if !uri.ends_with("/")
@@ -231,53 +236,53 @@ impl HyperClient
     }
     pub async fn get_with_params<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Result<(StatusCode, Bytes), Error>
     {
-        self.get_body_retry(params, "GET", None::<bool>).await
+        self.get_body_retry(params, Method::GET, None::<bool>).await
     }
     pub async fn get(&self) -> Result<(StatusCode, Bytes), Error>
     {
         let params: Vec<(String, String)> = Vec::new();
-        self.get_body_retry(&params, "GET", None::<bool>).await
+        self.get_body_retry(&params, Method::GET, None::<bool>).await
     }
     pub async fn get_with_body<B: Serialize + Clone>(&self, body: B) -> Result<(StatusCode, Bytes), Error>
     {
         let v: Vec<(&str, &str)> = Vec::new();
-        self.get_body_retry(&v, "GET", Some(body)).await
+        self.get_body_retry(&v, Method::GET, Some(body)).await
     }
     pub async fn post_with_params<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Result<(StatusCode, Bytes), Error>
     {
-        self.get_body_retry(params, "POST", None::<bool>).await
+        self.get_body_retry(params, Method::POST, None::<bool>).await
     }
     pub async fn post_with_body<B: Serialize + Clone>(&self, body: B) -> Result<(StatusCode, Bytes), Error>
     {
         let v: Vec<(&str, &str)> = Vec::new();
-        self.get_body_retry(&v, "POST", Some(body)).await
+        self.get_body_retry(&v, Method::POST, Some(body)).await
     }
     pub async fn patch_with_params<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Result<(StatusCode, Bytes), Error>
     {
-        self.get_body_retry(params, "PATCH", None::<bool>).await
+        self.get_body_retry(params, Method::PATCH, None::<bool>).await
     }
     pub async fn patch_with_body<B: Serialize + Clone>(&self, body: B) -> Result<(StatusCode, Bytes), Error>
     {
         let v: Vec<(&str, &str)> = Vec::new();
-        self.get_body_retry(&v, "PATCH", Some(body)).await
+        self.get_body_retry(&v, Method::PATCH, Some(body)).await
     }
     pub async fn put_with_params<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Result<(StatusCode, Bytes), Error>
     {
-        self.get_body_retry(params, "PUT", None::<bool>).await
+        self.get_body_retry(params, Method::PUT, None::<bool>).await
     }
     pub async fn put_with_body<B: Serialize + Clone>(&self, body: B) -> Result<(StatusCode, Bytes), Error>
     {
         let v: Vec<(&str, &str)> = Vec::new();
-        self.get_body_retry(&v, "PUT", Some(body)).await
+        self.get_body_retry(&v, Method::PUT, Some(body)).await
     }
     pub async fn delete<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Result<(StatusCode, Bytes), Error>
     {
-        self.get_body_retry(params, "DELETE", None::<bool>).await
+        self.get_body_retry(params, Method::DELETE, None::<bool>).await
     }
     pub async fn delete_with_body<S: AsRef<str> + ToString, B: Serialize + Clone>(&self, body: B) -> Result<(StatusCode, Bytes), Error>
     {
         let v: Vec<(&str, &str)> = Vec::new();
-        self.get_body_retry(&v, "DELETE", Some(body)).await
+        self.get_body_retry(&v, Method::DELETE, Some(body)).await
     }
     fn apply_params_to_uri<S: AsRef<str> + ToString>(&self, params: &[(S, S)]) -> Uri
     {
@@ -308,7 +313,7 @@ impl HyperClient
         }
     }
 
-    async fn get_body_timeout<S: AsRef<str> + ToString>(&self, params: &[(S, S)], method: &str, body: Option<Bytes>)  -> Result<(StatusCode, Bytes), Error>
+    async fn get_body_timeout<S: AsRef<str> + ToString>(&self, params: &[(S, S)], method: &Method, body: Option<Bytes>)  -> Result<(StatusCode, Bytes), Error>
     {
         let mut req =  Request::builder()
         .method(method)
@@ -347,47 +352,11 @@ impl HyperClient
     {
         Duration::from_millis(rand::rng().random_range(timeout_from..timeout_to))
     }
-    async fn get_body_retry<S: AsRef<str> + ToString, B: Serialize + Clone>(&self, params: &[(S, S)], method: &str, body: Option<B>) -> Result<(StatusCode, Bytes), Error>
+    async fn get_body_retry<S: AsRef<str> + ToString, B: Serialize + Clone>(&self, params: &[(S, S)], method: Method, body: Option<B>) -> Result<(StatusCode, Bytes), Error>
     {
         let body: Option<Bytes> = body.and_then(|b| Some(Bytes::from(serde_json::to_string(&b).unwrap())));
-        retry::retry(self.retry_count, self.timeout_from, self.timeout_to, || self.get_body_timeout(params, method, body.clone())).await
+        retry::retry(self.retry_count, self.timeout_from, self.timeout_to, || self.get_body_timeout(params, &method, body.clone())).await
     }
-    // async fn get_body(req: Request<BoxBody>) -> Result<(StatusCode, Bytes), Error>
-    // {
-    //     let host = req.uri().authority().unwrap().as_str().replace("localhost", "127.0.0.1");
-    //     logger::debug!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
-    //     //let addr: SocketAddr = host.parse().unwrap();
-    //     let https = req.uri().scheme().and_then(|s| Some(s.as_str() == "https"));
-    //     let addr: SocketAddr = if https.is_some() && *https.as_ref().unwrap() == true
-    //     {
-    //         SocketAddr::new(IpAddr::V4(host.parse::<Ipv4Addr>().unwrap()), 443)
-    //     }
-    //     else
-    //     {
-    //         host.parse().unwrap()
-    //     };
-    //     let client_stream = TcpStream::connect(&addr).await;
-    //     if client_stream.is_err()
-    //     {
-    //         logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
-    //         return Err(Error::SendError(addr.to_string()));
-    //     }
-    //     let io = TokioIo::new(client_stream.unwrap());
-   
-    //     let (mut sender, conn) = hyper::client::conn::http1::handshake(io).await?;
-    //     tokio::task::spawn(async move 
-    //         {
-    //             if let Err(err) = conn.await 
-    //             {
-    //                 logger::error!("Ошибка подключения: {:?}", err);
-    //             }
-    //         });
-    //     let send = sender.send_request(req).await?;
-    //     let status = send.status();
-    //     let body = send.collect().await?.to_bytes();
-    //     logger::debug!("От {} получен ответ со статусом -> {}", &addr, &status);
-    //     Ok((status, body))
-    // }
 
     async fn get_body_tls(req: Request<BoxBody>) -> Result<(StatusCode, Bytes), Error>
     {

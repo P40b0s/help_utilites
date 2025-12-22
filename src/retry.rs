@@ -29,7 +29,7 @@ where F: Fn() -> Fu,
                 {
                     warn!("Повторная попытка выполнения retry осталось ∞ попыток");
                 }
-                let delay = rand::thread_rng().gen_range(delay_from..delay_to);
+                let delay = rand::rng().random_range(delay_from..delay_to);
                 tokio::time::sleep(tokio::time::Duration::from_millis(delay)).await;
             }
         };
@@ -57,7 +57,7 @@ where F: Fn() -> Result<V, E>
                 {
                     warn!("Повторная попытка выполнения retry осталось ∞ попыток");
                 }
-                let delay = rand::thread_rng().gen_range(delay_from..delay_to);
+                let delay = rand::rng().random_range(delay_from..delay_to);
                 sleep(Duration::from_millis(delay));
             }
         };
