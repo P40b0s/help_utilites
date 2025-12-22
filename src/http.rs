@@ -4,6 +4,7 @@ pub use http_body_util::{BodyExt, Full};
 use hyper::Method;
 pub use hyper::{body::Bytes, header::*, Request, Response, StatusCode, Uri};
 use hyper_util::{client::legacy::Client, rt::{TokioExecutor, TokioIo}};
+use logger::debug;
 use rand::Rng;
 use std::collections::HashMap;
 use serde::Serialize;
@@ -318,6 +319,7 @@ impl HyperClient
         let mut req =  Request::builder()
         .method(method)
         .uri(self.apply_params_to_uri(params));
+        debug!("Запрос URI: {}", self.apply_params_to_uri(params));
         let headers = req.headers_mut().unwrap();
         for (k, v) in &self.headers
         {
@@ -482,13 +484,13 @@ mod tests
     async fn test_hyper_cli_new()
     {
         let _ = logger::StructLogger::new_default();
-        let uri: Uri = "http://95.173.157.133:8000/api/ebpi/redactions/".parse().unwrap();
+        let uri: Uri = "http://pravo.gov.ru:8000/api/ebpi/redactions/".parse().unwrap();
         let hyper_client = super::HyperClient::new(uri)
         .with_headers(headers());
         for i in 0..10
         {
             //let r = empty_get_request(uri.clone());
-            let result = hyper_client.get_with_params(&[("t", "%7B%22hash%22%3A%2266c4df9cc6da662d2ee557c6f2e21cf2f84c3ba3d8bcdfeb43d1925ef3149b24%22%2C%22ttl%22%3A3%7D")]).await;
+            let result = hyper_client.get_with_params(&[("bpa", "ebpi"), ("t", "%7B%22hash%22%3A%2266c4df9cc6da662d2ee557c6f2e21cf2f84c3ba3d8bcdfeb43d1925ef3149b24%22%2C%22ttl%22%3A3%7D")]).await;
             if result.is_err()
             {
                 logger::error!("{}->{:?}", i, result);
