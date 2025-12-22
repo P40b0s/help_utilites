@@ -4,7 +4,7 @@ pub use http_body_util::{BodyExt, Full};
 use hyper::Method;
 pub use hyper::{body::Bytes, header::*, Request, Response, StatusCode, Uri};
 use hyper_util::{client::legacy::Client, rt::{TokioExecutor, TokioIo}};
-use logger::debug;
+use tracing::debug;
 use rand::Rng;
 use std::collections::HashMap;
 use serde::Serialize;
@@ -25,7 +25,7 @@ async fn connect(addr: SocketAddr) -> Result<TcpStream, Error>
     };
     if client_stream.is_err()
     {
-        logger::error!("Ошибка подключения к {} -> {}", &addr, client_stream.err().unwrap());
+        tracing::error!("Ошибка подключения к {} -> {}", &addr, client_stream.err().unwrap());
         return Err(Error::SendError(addr.to_string()));
     }
     Ok(client_stream.unwrap())
@@ -61,7 +61,7 @@ async fn get_body_retry(uri: Uri)  -> Result<Bytes, Error>
 async fn get_body(req: Request<BoxBody>) -> Result<Bytes, Error>
 {
     let host = req.uri().authority().unwrap().as_str().replace("localhost", "127.0.0.1");
-    logger::info!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
+    tracing::info!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
     let addr: SocketAddr = host.parse().unwrap();
     // let retry_strategy =  tokio_retry::strategy::ExponentialBackoff::from_millis(100)
     // .map(jitter) // add jitter to delays
@@ -71,7 +71,7 @@ async fn get_body(req: Request<BoxBody>) -> Result<Bytes, Error>
     let client_stream = TcpStream::connect(&addr).await;
     if client_stream.is_err()
     {
-        logger::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
+        tracing::error!("Ошибка подключения к сервису {} -> {}", &addr, client_stream.err().unwrap());
         return Err(Error::SendError(addr.to_string()));
     }
     let io = TokioIo::new(client_stream.unwrap());
@@ -80,7 +80,7 @@ async fn get_body(req: Request<BoxBody>) -> Result<Bytes, Error>
         {
             if let Err(err) = conn.await 
             {
-                logger::error!("Ошибка подключения: {:?}", err);
+                tracing::error!("Ошибка подключения: {:?}", err);
             }
         });
     let send = sender.send_request(req).await?;
@@ -91,7 +91,7 @@ async fn get_body(req: Request<BoxBody>) -> Result<Bytes, Error>
     }
     else
     {
-        logger::error!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status());
+        tracing::error!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status());
         return Err(Error::SendError(format!("Ошибка получения инфомации от сервиса {} -> {}", &addr, send.status())));
     }
 }
@@ -375,7 +375,7 @@ impl HyperClient
         let fut = async move 
         {
             let mut req = req;
-            logger::debug!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
+            tracing::debug!("Отправка запроса на {}, headers: {:?}", req.uri(), req.headers());
             let mut response = client
             .get(req.uri().clone())
             .await?;
@@ -389,7 +389,7 @@ impl HyperClient
                     if c.to_str().unwrap() != &old
                     {
                         req.headers_mut().insert(COOKIE, c.clone());
-                        logger::debug!("Поменялись куки, деаем поторный запрос на {}, headers: {:?}", req.uri(), req.headers());
+                        tracing::debug!("Поменялись куки, деаем поторный запрос на {}, headers: {:?}", req.uri(), req.headers());
                     }
                   
                 }
@@ -397,7 +397,7 @@ impl HyperClient
                 else 
                 {
                     req.headers_mut().insert(COOKIE, c.clone());
-                    logger::debug!("Установлены новые куки, делаем поторный запрос на {}, headers: {:?}", req.uri(), req.headers());
+                    tracing::debug!("Установлены новые куки, делаем поторный запрос на {}, headers: {:?}", req.uri(), req.headers());
                     
                 }
                 response = client
@@ -407,7 +407,7 @@ impl HyperClient
             //перенаправление запроса при статусе 301
             if let Some(c) = response.headers().get("location")
             {
-                logger::debug!("От сервера получен ответ с перенаправлением запроса на {}", c.to_str().unwrap());
+                tracing::debug!("От сервера получен ответ с перенаправлением запроса на {}", c.to_str().unwrap());
                 if let Ok(new_uri) = c.to_str().unwrap().parse::<Uri>()
                 {
                     *req.uri_mut() = new_uri;
@@ -416,7 +416,7 @@ impl HyperClient
                     .await?;
                 }
             }
-            logger::debug!("От сервера получен ответ со статусом {}, headers: {:?}", response.status(), response.headers());
+            tracing::debug!("От сервера получен ответ со статусом {}, headers: {:?}", response.status(), response.headers());
             let status = response.status();
             let body = response
                 .into_body()
@@ -443,18 +443,18 @@ mod tests
     // #[tokio::test]
     // async fn test_cli()
     // {
-    //     logger::StructLogger::initialize_logger();
+    //     tracing::Structtracing::initialize_logger();
     //     let cli = super::HttpClient::new("http://95.173.157.133:8000/api/ebpi/redactions");
     //     for i in 0..10
     //     {
     //         let result = cli.get_with_params(Some(&[("t", "%7B%22hash%22%3A%2266c4df9cc6da662d2ee557c6f2e21cf2f84c3ba3d8bcdfeb43d1925ef3149b24%22%2C%22ttl%22%3A3%7D")])).await;
     //         if result.is_err()
     //         {
-    //             logger::error!("{:?}", result);
+    //             tracing::error!("{:?}", result);
     //         }
     //         else 
     //         {
-    //             logger::info!("{:?}", result.as_ref().unwrap());
+    //             tracing::info!("{:?}", result.as_ref().unwrap());
     //         }
     //     }
         
@@ -471,10 +471,31 @@ mod tests
             let result = super::get_body_retry(uri.clone()).await;
             if result.is_err()
             {
-                logger::error!("{}->{:?}", i, result);
+                tracing::error!("{}->{:?}", i, result);
             }
             else {
-                logger::info!("{:?}", result.as_ref().unwrap());
+                tracing::info!("{:?}", result.as_ref().unwrap());
+            }
+        }
+        
+    }
+     #[tokio::test]
+    async fn test_hyper_cli2()
+    {
+        let _ = logger::StructLogger::new_default();
+        let attrs = r#"[{"AttrId":5,"AttrMode":0,"DateFrom":"20240101","DateTo":"20240620"},{"AttrId":999,"AttrMode":1,"Words":[50,"-date","20220701",0,1]}]"#;
+        let uri: Uri = format!("http://actual.pravo.gov.ru:8000/api/ebpi/attrsearch?bpa=ebpi&q={}", attrs).parse().unwrap();
+      
+        for i in 0..10
+        {
+            //let r = empty_get_request(uri.clone());
+            let result = super::get_body_retry(uri.clone()).await;
+            if result.is_err()
+            {
+                tracing::error!("{}->{:?}", i, result);
+            }
+            else {
+                tracing::info!("{:?}", result.as_ref().unwrap());
             }
         }
         
@@ -484,19 +505,19 @@ mod tests
     async fn test_hyper_cli_new()
     {
         let _ = logger::StructLogger::new_default();
-        let uri: Uri = "http://pravo.gov.ru:8000/api/ebpi/redactions/".parse().unwrap();
+        let uri: Uri = "http://pravo.gov.ru:8000/api/ebpi/attrsearch/".parse().unwrap();
         let hyper_client = super::HyperClient::new(uri)
         .with_headers(headers());
         for i in 0..10
         {
             //let r = empty_get_request(uri.clone());
-            let result = hyper_client.get_with_params(&[("bpa", "ebpi"), ("t", "%7B%22hash%22%3A%2266c4df9cc6da662d2ee557c6f2e21cf2f84c3ba3d8bcdfeb43d1925ef3149b24%22%2C%22ttl%22%3A3%7D")]).await;
+            let result = hyper_client.get_with_params(&[("bpa", "ebpi"), ("q", "[{%22AttrId%22:5,%22AttrMode%22:0,%22DateFrom%22:%2220240101%22,%22DateTo%22:%2220240620%22},{%22AttrId%22:999,%22AttrMode%22:1,%22Words%22:[50,%22-date%22,%2220220701%22,0,1]}]")]).await;
             if result.is_err()
             {
-                logger::error!("{}->{:?}", i, result);
+                tracing::error!("{}->{:?}", i, result);
             }
             else {
-                logger::info!("{:?}", result.as_ref().unwrap());
+                tracing::info!("{:?}", result.as_ref().unwrap());
             }
         }
     }
@@ -514,10 +535,10 @@ mod tests
             let result = hyper_client.get().await;
             if result.is_err()
             {
-                logger::error!("{}->{:?}", i, result);
+                tracing::error!("{}->{:?}", i, result);
             }
             else {
-                logger::info!("{:?}", result.as_ref().unwrap());
+                tracing::info!("{:?}", result.as_ref().unwrap());
             }
         }
     }
@@ -541,7 +562,7 @@ mod tests
             (HeaderName::from_static("x-requested-with"), "XMLHttpRequest")
         ]);
         let res = client.get().await;
-        logger::info!("{:?}", res);
+        tracing::info!("{:?}", res);
     }
     fn headers2() -> Vec<(HeaderName, String)>
     {
